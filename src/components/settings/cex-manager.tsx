@@ -17,13 +17,18 @@ export function CexManager() {
     type: 'binance' as ExchangeType,
     name: '',
     apiKey: '',
-    secret: ''
+    secret: '',
+    password: ''
   });
 
   const handleAdd = () => {
     if (newExchange.name && newExchange.apiKey && newExchange.secret) {
+      if (newExchange.type === 'okx' && !newExchange.password) {
+          // You might want to show an error here, but for now we rely on user input
+          return; 
+      }
       addExchange(newExchange);
-      setNewExchange({ type: 'binance', name: '', apiKey: '', secret: '' });
+      setNewExchange({ type: 'binance', name: '', apiKey: '', secret: '', password: '' });
     }
   };
 
@@ -76,6 +81,17 @@ export function CexManager() {
               onChange={e => setNewExchange({...newExchange, secret: e.target.value})}
             />
           </div>
+          {newExchange.type === 'okx' && (
+            <div className="space-y-2">
+              <Label>Passphrase (OKX)</Label>
+              <Input 
+                type="password"
+                placeholder="API Passphrase" 
+                value={newExchange.password}
+                onChange={e => setNewExchange({...newExchange, password: e.target.value})}
+              />
+            </div>
+          )}
         </div>
         <Button onClick={handleAdd} className="w-full md:w-auto">
           <Plus className="w-4 h-4 mr-2" /> 添加交易所

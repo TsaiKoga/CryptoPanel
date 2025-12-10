@@ -1,6 +1,63 @@
-import { createPublicClient, http, formatUnits, parseAbi } from 'viem';
-import { mainnet, bsc, polygon, optimism, arbitrum, base, zksync, soneium, xLayer } from 'viem/chains';
+import { createPublicClient, http, formatUnits, parseAbi, defineChain } from 'viem';
+import { mainnet, bsc, polygon, optimism, arbitrum, base, zksync, soneium, xLayer, avalanche, linea } from 'viem/chains';
 import { Asset } from '@/types';
+
+// Define Ink Chain
+export const ink = defineChain({
+  id: 57073,
+  name: 'Ink',
+  network: 'ink',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Ether',
+    symbol: 'ETH',
+  },
+  rpcUrls: {
+    default: { http: ['https://rpc-gel.inkonchain.com'] },
+    public: { http: ['https://rpc-gel.inkonchain.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'Ink Explorer', url: 'https://explorer.inkonchain.com' },
+  },
+});
+
+// Define Plume Testnet Chain
+export const plumeMainnet = defineChain({
+  id: 98866,
+  name: 'Plume',
+  network: 'plume',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Plume',
+    symbol: 'PLUME',
+  },
+  rpcUrls: {
+    default: { http: ['https://rpc.plume.org'] },
+    public: { http: ['https://rpc.plume.org'] },
+  },
+  blockExplorers: {
+    default: { name: 'Plume Explorer', url: 'https://explorer.plume.org' },
+  },
+});
+
+// Define Berachain Mainnet
+export const berachainMainnet = defineChain({
+  id: 80094,
+  name: 'Berachain',
+  network: 'berachain',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'BERA',
+    symbol: 'BERA',
+  },
+  rpcUrls: {
+    default: { http: ['https://rpc.berachain.com'] },
+    public: { http: ['https://rpc.berachain.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'Berachain Explorer', url: 'https://explorer.berachain.com' },
+  },
+});
 
 // Define supported chains
 export const SUPPORTED_CHAINS = {
@@ -13,6 +70,29 @@ export const SUPPORTED_CHAINS = {
   zksync: zksync,
   soneium: soneium,
   xlayer: xLayer,
+  avalanche: avalanche,
+  linea: linea,
+  berachain: berachainMainnet, // Mainnet 80094
+  ink: ink,
+  plume: plumeMainnet,
+};
+
+// Map chain ID to DeFiLlama chain name
+const DEFILLAMA_CHAIN_MAP: Record<number, string> = {
+    [mainnet.id]: 'ethereum',
+    [bsc.id]: 'bsc',
+    [polygon.id]: 'polygon',
+    [optimism.id]: 'optimism',
+    [arbitrum.id]: 'arbitrum',
+    [base.id]: 'base',
+    [zksync.id]: 'era',
+    [soneium.id]: 'soneium',
+    [xLayer.id]: 'xlayer',
+    [avalanche.id]: 'avax',
+    [linea.id]: 'linea',
+    [berachainMainnet.id]: 'berachain', // Usually 'berachain' for mainnet
+    [ink.id]: 'ink', 
+    [plumeMainnet.id]: 'plume', 
 };
 
 // Common tokens to scan (simplified for MVP)
@@ -39,7 +119,7 @@ const COMMON_TOKENS: Record<number, Array<{ symbol: string, address: string, dec
     { symbol: 'cbBTC', address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf', decimals: 8 },
     { symbol: 'TOSHI', address: '0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4', decimals: 18 },
     { symbol: 'ZRO', address: '0x6985884C4392D348587B19cb9eAAf157F13271cd', decimals: 18 },
-    { symbol: 'ZORA', address: '0xD835Fb78297729473337387c0D92DfbBF754eE07', decimals: 18 }, // Note: This is ZORA token on Base, check if correct.
+    { symbol: 'ZORA', address: '0xD835Fb78297729473337387c0D92DfbBF754eE07', decimals: 18 }, 
     { symbol: 'VIRTUAL', address: '0x0b3e328455c4059EEb9e3743215830bDb83D56c2', decimals: 18 }, 
     { symbol: 'USDbC', address: '0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA', decimals: 6 },
   ],
@@ -57,6 +137,28 @@ const COMMON_TOKENS: Record<number, Array<{ symbol: string, address: string, dec
     { symbol: 'WETH', address: '0x5a77f1443d16ee5761d310e38b62f77f726bc71c', decimals: 18 },
     { symbol: 'XDOG', address: '0x0cc24c51BF89c00c5afFBfCf5E856C25ecBdb48e', decimals: 18 },
   ],
+  [avalanche.id]: [
+    { symbol: 'USDT', address: '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7', decimals: 6 },
+    { symbol: 'USDC', address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E', decimals: 6 },
+    { symbol: 'WETH.e', address: '0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB', decimals: 18 },
+    { symbol: 'BTC.b', address: '0x152b9d0FdC40C096757F570A51E494bd4b943E50', decimals: 8 },
+  ],
+  [linea.id]: [
+    { symbol: 'USDC', address: '0x176211869cA2b568f2A7D4EE941E073a821EE1ff', decimals: 6 },
+    { symbol: 'USDT', address: '0xA219439258ca9da29E9Cc4cE5596924745e12B93', decimals: 6 },
+    { symbol: 'WETH', address: '0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f', decimals: 18 },
+    { symbol: 'DAI', address: '0x4AF15ec2A0BD43Db75dd04E62FAA3B8EF36b00d5', decimals: 18 },
+  ],
+  [berachainMainnet.id]: [
+      // Add mainnet tokens when available
+  ],
+  [ink.id]: [
+      { symbol: 'WETH', address: '0x4200000000000000000000000000000000000006', decimals: 18 },
+      { symbol: 'USDT', address: '0x0200c29006150606b650577bbe7b6248f58470c1', decimals: 6 },
+  ],
+  [plumeMainnet.id]: [
+     // Add tokens when addresses are confirmed
+  ]
 };
 
 const ERC20_ABI = parseAbi([
@@ -89,7 +191,10 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
               valueUsd: 0,
               price: 0,
               source: `Wallet (${chain.name})`,
-              type: 'wallet'
+              type: 'wallet',
+              chainId: chain.id,
+              chainName: DEFILLAMA_CHAIN_MAP[chain.id],
+              contractAddress: '0x0000000000000000000000000000000000000000' // Special address for native
           });
       }
 
@@ -113,7 +218,10 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
                      valueUsd: 0,
                      price: 0, 
                      source: `Wallet (${chain.name})`,
-                     type: 'wallet'
+                     type: 'wallet',
+                     chainId: chain.id,
+                     chainName: DEFILLAMA_CHAIN_MAP[chain.id],
+                     contractAddress: token.address
                  });
              }
           } catch (e) {
@@ -129,4 +237,3 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
   await Promise.all(promises);
   return assets;
 }
-

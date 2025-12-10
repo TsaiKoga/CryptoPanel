@@ -6,6 +6,7 @@ import { AssetTabs } from '@/components/dashboard/asset-tabs';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Settings, RefreshCw } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function Dashboard() {
   const { assets, loading, error, refresh } = useAssetFetcher();
@@ -15,6 +16,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">CryptoPanel 资产看板</h1>
         <div className="flex space-x-2">
+          <ThemeToggle />
           <Button variant="outline" size="icon" onClick={refresh} disabled={loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>

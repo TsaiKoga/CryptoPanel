@@ -29,10 +29,16 @@ export function useAssetFetcher() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(exchange)
             });
-            if (!res.ok) throw new Error('Failed to fetch');
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
-            if (data.assets) {
+            
+            const data = await res.json().catch(() => null);
+            
+            if (!res.ok) {
+                throw new Error(data?.details || data?.error || `Request failed with status ${res.status}`);
+            }
+            
+            if (data?.error) throw new Error(data.error);
+            
+            if (data?.assets) {
                 return data.assets.map((a: Asset) => ({ 
                     ...a, 
                     source: `${exchange.name}` 
@@ -75,29 +81,29 @@ export function useAssetFetcher() {
       const results = await Promise.all([...cexPromises, ...walletPromises]);
       results.forEach(list => allAssets.push(...list));
 
-      // 3. Fetch Prices for Wallet Assets (which have 0 price)
-      const walletAssetsToPrice = allAssets.filter(a => a.type === 'wallet' && a.price === 0);
-      if (walletAssetsToPrice.length > 0) {
-          const symbols = Array.from(new Set(walletAssetsToPrice.map(a => a.symbol)));
+      // 3. Fetch Prices for Assets with 0 price (including CEX assets if backend failed)
+      const assetsToPrice = allAssets.filter(a => a.price === 0);
+      if (assetsToPrice.length > 0) {
           try {
+              // Pass full asset objects to API to support DeFiLlama chain:address lookup
               const priceRes = await fetch('/api/prices', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ symbols })
+                  body: JSON.stringify({ assets: assetsToPrice })
               });
               
               if (priceRes.ok) {
                   const { prices } = await priceRes.json();
                   // Update assets with prices
                   allAssets.forEach(asset => {
-                      if (asset.type === 'wallet' && prices[asset.symbol]) {
+                      if (asset.price === 0 && prices[asset.symbol]) {
                           asset.price = prices[asset.symbol];
                           asset.valueUsd = asset.amount * asset.price;
                       }
                   });
               }
           } catch (e) {
-              console.error("Failed to fetch prices for wallet assets", e);
+              console.error("Failed to fetch prices for assets", e);
           }
       }
       
