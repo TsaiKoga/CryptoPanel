@@ -5,6 +5,8 @@ import { useAssetStore } from '@/components/providers/asset-provider';
 import { Asset } from '@/types';
 import { fetchOnChainAssets } from '@/lib/onchain';
 import { fetchEigenLayerAssets } from '@/lib/protocols/eigenlayer';
+import { fetchAerodromeAssets } from '@/lib/protocols/aerodrome';
+import { fetchAaveAssets } from '@/lib/protocols/aave';
 import { toast } from 'sonner';
 
 export function useAssetFetcher() {
@@ -55,9 +57,11 @@ export function useAssetFetcher() {
       // 2. Fetch Wallet Assets
       const walletPromises = wallets.map(async (wallet) => {
           try {
-              const [onChainAssets, eigenAssets] = await Promise.all([
+              const [onChainAssets, eigenAssets, aerodromeAssets, aaveAssets] = await Promise.all([
                   fetchOnChainAssets(wallet.address),
-                  fetchEigenLayerAssets(wallet.address)
+                  fetchEigenLayerAssets(wallet.address),
+                  fetchAerodromeAssets(wallet.address),
+                  fetchAaveAssets(wallet.address)
               ]);
 
               const mappedOnChain = onChainAssets.map(a => ({ 
@@ -70,7 +74,17 @@ export function useAssetFetcher() {
                   source: `${wallet.name} (EigenLayer)`
               }));
 
-              return [...mappedOnChain, ...mappedEigen];
+              const mappedAerodrome = aerodromeAssets.map(a => ({
+                  ...a,
+                  source: `${wallet.name} (Aerodrome)`
+              }));
+
+              const mappedAave = aaveAssets.map(a => ({
+                  ...a,
+                  source: `${wallet.name} (${a.source})`
+              }));
+
+              return [...mappedOnChain, ...mappedEigen, ...mappedAerodrome, ...mappedAave];
           } catch (e: any) {
               console.error(`Failed to fetch ${wallet.name}`, e);
               toast.error(`Wallet Sync Error (${wallet.name})`, { description: "Failed to fetch on-chain data" });
