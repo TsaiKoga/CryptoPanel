@@ -164,37 +164,65 @@ export async function fetchAerodromeAssets(address: string): Promise<Asset[]> {
                 });
 
                 // Check Unstaked LP Balance
-                const lpBalance = await client.readContract({
-                    address: poolAddress,
-                    abi: ERC20_ABI,
-                    functionName: 'balanceOf',
-                    args: [address as `0x${string}`],
-                });
-
-                // Check Staked LP Balance (Gauge)
-                let stakedBalance = 0n;
-                if (gaugeAddress !== '0x0000000000000000000000000000000000000000') {
-                    stakedBalance = await client.readContract({
-                        address: gaugeAddress,
+                let lpBalance = 0n;
+                try {
+                    lpBalance = await client.readContract({
+                        address: poolAddress,
                         abi: ERC20_ABI,
                         functionName: 'balanceOf',
                         args: [address as `0x${string}`],
                     });
+                } catch (e) {
+                    console.warn(`[Aerodrome] Failed to fetch LP balance for pool ${poolAddress}:`, e);
+                }
+
+                // Check Staked LP Balance (Gauge)
+                let stakedBalance = 0n;
+                if (gaugeAddress !== '0x0000000000000000000000000000000000000000') {
+                    try {
+                        stakedBalance = await client.readContract({
+                            address: gaugeAddress,
+                            abi: ERC20_ABI,
+                            functionName: 'balanceOf',
+                            args: [address as `0x${string}`],
+                        });
+                    } catch (e) {
+                        console.warn(`[Aerodrome] Failed to fetch staked balance for gauge ${gaugeAddress}:`, e);
+                    }
                 }
 
                 if (lpBalance > 0n || stakedBalance > 0n) {
-                    // Get Pool Symbol
-                    const symbol = await client.readContract({
-                        address: poolAddress,
-                        abi: ERC20_ABI,
-                        functionName: 'symbol',
-                    });
+                    // Get Pool Symbol and Decimals
+                    let symbol = `LP-${poolAddress.slice(0, 6)}...`; // Fallback symbol
+                    let decimals = 18; // Default decimals
+                    
+                    try {
+                        symbol = await client.readContract({
+                            address: poolAddress,
+                            abi: ERC20_ABI,
+                            functionName: 'symbol',
+                        });
+                    } catch (e) {
+                        console.warn(`[Aerodrome] Failed to fetch symbol for pool ${poolAddress}:`, e);
+                    }
+
+                    try {
+                        decimals = await client.readContract({
+                            address: poolAddress,
+                            abi: ERC20_ABI,
+                            functionName: 'decimals',
+                        });
+                    } catch (e) {
+                        console.warn(`[Aerodrome] Failed to fetch decimals for pool ${poolAddress}, using default 18:`, e);
+                    }
 
                     // Add Unstaked
                     if (lpBalance > 0n) {
+                        const amount = parseFloat(formatUnits(lpBalance, decimals));
+                        console.log(`[Aerodrome] Found unstaked LP: ${symbol} = ${amount}`);
                         assets.push({
                             symbol: symbol, // e.g. vAMM-AERO/USDC
-                            amount: parseFloat(formatUnits(lpBalance, 18)), // LP tokens usually 18 decimals
+                            amount: amount,
                             valueUsd: 0,
                             price: 0,
                             source: 'Aerodrome (Wallet)',
@@ -207,9 +235,11 @@ export async function fetchAerodromeAssets(address: string): Promise<Asset[]> {
 
                     // Add Staked
                     if (stakedBalance > 0n) {
+                        const amount = parseFloat(formatUnits(stakedBalance, decimals));
+                        console.log(`[Aerodrome] Found staked LP: ${symbol} = ${amount}`);
                         assets.push({
                             symbol: `${symbol} (Staked)`,
-                            amount: parseFloat(formatUnits(stakedBalance, 18)),
+                            amount: amount,
                             valueUsd: 0,
                             price: 0,
                             source: 'Aerodrome (Gauge)',
@@ -221,14 +251,19 @@ export async function fetchAerodromeAssets(address: string): Promise<Asset[]> {
                     }
                 }
             } catch (e) {
-                // Ignore individual pool errors
+                console.warn(`[Aerodrome] Error processing pool ${i}:`, e);
             }
         });
     }
 
-    // Execute batches of 10
-    for (let i = 0; i < poolPromises.length; i += 10) {
-        await Promise.all(poolPromises.slice(i, i + 10).map(p => p()));
+    // Execute batches of 5 with delay between batches
+    for (let i = 0; i < poolPromises.length; i += 5) {
+        const batch = poolPromises.slice(i, i + 5);
+        await Promise.all(batch.map(p => p()));
+        // Add delay between batches to avoid rate limiting
+        if (i + 5 < poolPromises.length) {
+            await new Promise(resolve => setTimeout(resolve, 800));
+        }
     }
 
   } catch (e) {
