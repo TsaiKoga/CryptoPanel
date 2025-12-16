@@ -1,6 +1,8 @@
 import { createPublicClient, http, formatUnits, parseAbi, defineChain } from 'viem';
 import { mainnet, bsc, polygon, optimism, arbitrum, base, zksync, soneium, xLayer, avalanche, linea } from 'viem/chains';
 import { Asset } from '@/types';
+import { getBaseClient } from '@/lib/rpc';
+import { hyperEvm } from '@/lib/chains/hyperevm';
 
 // Define Ink Chain
 export const ink = defineChain({
@@ -75,6 +77,7 @@ export const SUPPORTED_CHAINS = {
   berachain: berachainMainnet, // Mainnet 80094
   ink: ink,
   plume: plumeMainnet,
+  hyperevm: hyperEvm,
 };
 
 // Map chain ID to DeFiLlama chain name
@@ -93,6 +96,7 @@ const DEFILLAMA_CHAIN_MAP: Record<number, string> = {
     [berachainMainnet.id]: 'berachain', // Usually 'berachain' for mainnet
     [ink.id]: 'ink', 
     [plumeMainnet.id]: 'plume', 
+    [hyperEvm.id]: 'hyperliquid', // Often mapped to hyperliquid
 };
 
 // Common tokens to scan (simplified for MVP)
@@ -158,6 +162,10 @@ const COMMON_TOKENS: Record<number, Array<{ symbol: string, address: string, dec
   ],
   [plumeMainnet.id]: [
      // Add tokens when addresses are confirmed
+  ],
+  [hyperEvm.id]: [
+    // Native HYPE is handled by native balance check
+    // Add bridged assets if addresses are confirmed
   ]
 };
 
@@ -170,10 +178,15 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
   
   const promises = Object.values(SUPPORTED_CHAINS).map(async (chain) => {
     try {
-      const client = createPublicClient({
-        chain,
-        transport: http(),
-      });
+      let client;
+      if (chain.id === base.id) {
+        client = getBaseClient();
+      } else {
+        client = createPublicClient({
+            chain,
+            transport: http(),
+        });
+      }
 
       // Validate address format
       if (!address.startsWith('0x') || address.length !== 42) {
