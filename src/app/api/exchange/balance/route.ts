@@ -269,6 +269,157 @@ async function fetchBinanceEarnAssets(
   return earnAssets;
 }
 
+// OKX API 签名辅助函数
+async function okxSignedRequest(
+  endpoint: string,
+  method: string,
+  apiKey: string,
+  secret: string,
+  passphrase: string,
+  body: string = '',
+  proxyAgent?: any
+): Promise<any> {
+  const baseUrl = 'https://www.okx.com';
+  const timestamp = new Date().toISOString();
+  
+  // OKX 签名方式：timestamp + method + requestPath + body
+  const message = timestamp + method + endpoint + body;
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(message)
+    .digest('base64');
+  
+  const url = `${baseUrl}${endpoint}`;
+  
+  const headers: Record<string, string> = {
+    'OK-ACCESS-KEY': apiKey,
+    'OK-ACCESS-SIGN': signature,
+    'OK-ACCESS-TIMESTAMP': timestamp,
+    'OK-ACCESS-PASSPHRASE': passphrase,
+    'Content-Type': 'application/json',
+  };
+  
+  const fetchOptions: any = {
+    method,
+    headers,
+  };
+  
+  if (body) {
+    fetchOptions.body = body;
+  }
+  
+  if (proxyAgent) {
+    fetchOptions.agent = proxyAgent;
+  }
+  
+  const response = await nodeFetch(url, fetchOptions);
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OKX API error: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  
+  // OKX API 返回格式：{ code: "0", msg: "", data: [...] }
+  if (data.code !== '0') {
+    throw new Error(`OKX API error: ${data.code} - ${data.msg || 'Unknown error'}`);
+  }
+  
+  return data.data;
+}
+
+// 获取 OKX 资金账号资产
+async function fetchOKXFundingAssets(
+  apiKey: string,
+  secret: string,
+  passphrase: string,
+  proxyAgent?: any
+): Promise<Asset[]> {
+  const assets: Asset[] = [];
+  
+  try {
+    const fundingBalances = await okxSignedRequest(
+      '/api/v5/asset/balances',
+      'GET',
+      apiKey,
+      secret,
+      passphrase,
+      '',
+      proxyAgent
+    );
+    
+    console.log('[OKX] Funding account response:', JSON.stringify(fundingBalances, null, 2));
+    
+    if (Array.isArray(fundingBalances)) {
+      for (const balance of fundingBalances) {
+        const amount = parseFloat(balance.bal || balance.availBal || '0');
+        if (amount > 0) {
+          assets.push({
+            symbol: balance.ccy || 'UNKNOWN',
+            amount,
+            price: 0,
+            valueUsd: 0,
+            source: 'OKX - 资金账号',
+            type: 'cex',
+          });
+        }
+      }
+    }
+  } catch (e: any) {
+    console.warn('[OKX] Failed to fetch funding account:', e.message);
+  }
+  
+  return assets;
+}
+
+// 获取 OKX 交易账号资产
+async function fetchOKXTradingAssets(
+  apiKey: string,
+  secret: string,
+  passphrase: string,
+  proxyAgent?: any
+): Promise<Asset[]> {
+  const assets: Asset[] = [];
+  
+  try {
+    const tradingBalance = await okxSignedRequest(
+      '/api/v5/account/balance',
+      'GET',
+      apiKey,
+      secret,
+      passphrase,
+      '',
+      proxyAgent
+    );
+    
+    console.log('[OKX] Trading account response:', JSON.stringify(tradingBalance, null, 2));
+    
+    if (Array.isArray(tradingBalance) && tradingBalance.length > 0) {
+      const accountData = tradingBalance[0];
+      if (accountData.details && Array.isArray(accountData.details)) {
+        for (const detail of accountData.details) {
+          const amount = parseFloat(detail.eq || detail.availEq || detail.cashBal || '0');
+          if (amount > 0) {
+            assets.push({
+              symbol: detail.ccy || 'UNKNOWN',
+              amount,
+              price: 0,
+              valueUsd: 0,
+              source: 'OKX - 交易账号',
+              type: 'cex',
+            });
+          }
+        }
+      }
+    }
+  } catch (e: any) {
+    console.warn('[OKX] Failed to fetch trading account:', e.message);
+  }
+  
+  return assets;
+}
+
 export async function POST(request: Request) {
   try {
     const { type, apiKey, secret, password } = await request.json();
@@ -314,21 +465,74 @@ export async function POST(request: Request) {
 
     // Fetch balance
     console.log(`[API] Fetching balance for ${type}...`);
-    const balance = await exchange.fetchBalance();
-    console.log(`[API] Balance fetched successfully`);
     
-    const items = balance.total as Record<string, number>;
-    if (!items) {
-         return NextResponse.json({ assets: [] });
-    }
-
     const assets: Asset[] = [];
     const symbolsToCheck: string[] = [];
+    let spotBalance: any = null;
     
-    // Filter non-zero assets
-    for (const [symbol, amount] of Object.entries(items)) {
-      if (amount && amount > 0) {
-        symbolsToCheck.push(symbol);
+    // 对于 OKX，分别获取资金账号和交易账号
+    if (type === 'okx') {
+      try {
+        // 获取资金账号资产
+        const fundingAssets = await fetchOKXFundingAssets(
+          apiKey,
+          secret,
+          password || '',
+          config.agent
+        );
+        assets.push(...fundingAssets);
+        
+        // 获取交易账号资产
+        const tradingAssets = await fetchOKXTradingAssets(
+          apiKey,
+          secret,
+          password || '',
+          config.agent
+        );
+        assets.push(...tradingAssets);
+        
+        // 收集所有币种用于价格查询
+        assets.forEach(asset => {
+          if (asset.amount > 0 && !symbolsToCheck.includes(asset.symbol)) {
+            symbolsToCheck.push(asset.symbol);
+          }
+        });
+      } catch (e: any) {
+        console.warn('[OKX] Failed to fetch account assets:', e.message);
+        // 如果直接API调用失败，回退到使用CCXT
+        spotBalance = await exchange.fetchBalance();
+        const items = spotBalance.total as Record<string, number>;
+        if (items) {
+          for (const [symbol, amount] of Object.entries(items)) {
+            if (amount && amount > 0) {
+              symbolsToCheck.push(symbol);
+              assets.push({
+                symbol,
+                amount,
+                price: 0,
+                valueUsd: 0,
+                source: 'OKX',
+                type: 'cex'
+              });
+            }
+          }
+        }
+      }
+    } else {
+      // 币安或其他交易所使用CCXT
+      spotBalance = await exchange.fetchBalance();
+      console.log(`[API] Balance fetched successfully`);
+      
+      const items = spotBalance.total as Record<string, number>;
+      if (!items) {
+        return NextResponse.json({ assets: [] });
+      }
+      
+      // Filter non-zero assets
+      for (const [symbol, amount] of Object.entries(items)) {
+        if (amount && amount > 0) {
+          symbolsToCheck.push(symbol);
+        }
       }
     }
 
@@ -359,19 +563,31 @@ export async function POST(request: Request) {
         }
     }
 
-    for (const symbol of symbolsToCheck) {
+    // 对于非OKX交易所，添加现货资产
+    if (type !== 'okx' && spotBalance) {
+      const items = spotBalance.total as Record<string, number>;
+      
+      for (const symbol of symbolsToCheck) {
         const amount = items[symbol];
         const price = prices[symbol] || 0;
         const valueUsd = amount * price;
         
         assets.push({
-            symbol,
-            amount,
-            price,
-            valueUsd,
-            source: type === 'binance' ? 'Binance' : 'OKX',
-            type: 'cex'
+          symbol,
+          amount,
+          price,
+          valueUsd,
+          source: type === 'binance' ? 'Binance' : 'OKX',
+          type: 'cex'
         });
+      }
+    } else if (type === 'okx') {
+      // 对于OKX，更新已获取资产的价格
+      assets.forEach(asset => {
+        const price = prices[asset.symbol] || 0;
+        asset.price = price;
+        asset.valueUsd = asset.amount * price;
+      });
     }
     
     // 获取币安理财资产
