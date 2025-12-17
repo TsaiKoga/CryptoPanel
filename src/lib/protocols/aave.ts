@@ -12,7 +12,8 @@ const POOL_ADDRESSES: Record<number, string> = {
   [optimism.id]: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
   [base.id]: '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5',
   [avalanche.id]: '0x794a61358D6845594F94dc1DB02A252b5b4814aD',
-  [linea.id]: '0x4b529A5d8268d74B687aC3dbb00e1b85bF5BF9F1',
+  // Linea Aave V3 Pool (from official docs)
+  [linea.id]: '0xc47b8C00b0f69a36fa203Ffeac0334874574a8Ac',
   [bsc.id]: '0x6807dc923806fE8F4c9454cEb2c689F8802E4aa3', // Aave V3 BNB
   [zksync.id]: '0x513c7E3a9c69cA91225a819801f37070423a75Aa', // Aave V3 zkSync Era (Verified from docs)
   // [xLayer.id]: '', // TODO: Add X Layer address when available
