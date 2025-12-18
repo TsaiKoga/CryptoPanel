@@ -57,12 +57,24 @@ export function useAssetFetcher() {
       // 2. Fetch Wallet Assets
       const walletPromises = wallets.map(async (wallet) => {
           try {
+              console.log(`[AssetFetcher] Fetching assets for wallet ${wallet.name} (${wallet.address})`);
               const [onChainAssets, eigenAssets, aerodromeAssets, aaveAssets] = await Promise.all([
                   fetchOnChainAssets(wallet.address),
-                  fetchEigenLayerAssets(wallet.address),
+                  fetchEigenLayerAssets(wallet.address).catch(e => {
+                      console.error(`[AssetFetcher] EigenLayer fetch failed for ${wallet.address}:`, e);
+                      return [];
+                  }),
                   fetchAerodromeAssets(wallet.address),
                   fetchAaveAssets(wallet.address)
               ]);
+
+              console.log(`[AssetFetcher] Wallet ${wallet.name} results:`, {
+                  onChain: onChainAssets.length,
+                  eigen: eigenAssets.length,
+                  aerodrome: aerodromeAssets.length,
+                  aave: aaveAssets.length
+              });
+              
 
               const mappedOnChain = onChainAssets.map(a => ({ 
                   ...a, 
@@ -97,6 +109,7 @@ export function useAssetFetcher() {
 
       // 3. Fetch Prices for Assets with 0 price (including CEX assets if backend failed)
       const assetsToPrice = allAssets.filter(a => a.price === 0);
+      
       if (assetsToPrice.length > 0) {
           try {
               // Pass full asset objects to API to support DeFiLlama chain:address lookup
@@ -108,6 +121,7 @@ export function useAssetFetcher() {
               
               if (priceRes.ok) {
                   const { prices } = await priceRes.json();
+                  
                   // Update assets with prices
                   allAssets.forEach(asset => {
                       if (asset.price === 0 && prices[asset.symbol]) {
@@ -125,6 +139,16 @@ export function useAssetFetcher() {
       const filteredAssets = settings.hideSmallAssets 
         ? allAssets.filter(a => a.valueUsd >= settings.smallAssetsThreshold)
         : allAssets;
+
+      // Debug: Check EigenLayer and Aave assets
+      const eigenAssets = filteredAssets.filter(a => a.source.includes('EigenLayer'));
+      const aaveAssets = filteredAssets.filter(a => a.source.includes('Aave'));
+      if (eigenAssets.length === 0 && allAssets.some(a => a.source.includes('EigenLayer'))) {
+          console.warn('[AssetFetcher] EigenLayer assets were filtered out. Check hideSmallAssets setting.');
+      }
+      if (aaveAssets.length === 0 && allAssets.some(a => a.source.includes('Aave'))) {
+          console.warn('[AssetFetcher] Aave assets were filtered out. Check hideSmallAssets setting.');
+      }
 
       // Sort by value
       filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);

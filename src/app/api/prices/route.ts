@@ -24,13 +24,20 @@ export async function POST(request: Request) {
     }
 
     // 2. Prepare DeFiLlama query
+    // Map strategy contract addresses to underlying token addresses for EigenLayer assets
+    const strategyToTokenMap: Record<string, string> = {
+        // EigenLayer swETH strategies -> swETH token
+        '0x0fe4f44bee93503346a3ac9ee5a26b130a5796d6': '0xf951E335afb289353dc249e82926178EaC7DEd78', // swETH token
+        '0x2aebba35224c4f82922162765b46febd8dfe1e14': '0xf951E335afb289353dc249e82926178EaC7DEd78', // swETH token
+        // Add more mappings as needed
+    };
+    
     const llamaIds = coinsToFetch
-        .filter(a => a.chainName && a.contractAddress)
+        .filter(a => a.chainName && a.contractAddress && a.contractAddress !== '0x0000000000000000000000000000000000000000')
         .map(a => {
-            if (a.contractAddress === '0x0000000000000000000000000000000000000000') {
-                return null; 
-            }
-            return `${a.chainName}:${a.contractAddress}`;
+            // For EigenLayer strategies, use underlying token address for price lookup
+            const tokenAddress = strategyToTokenMap[a.contractAddress?.toLowerCase()] || a.contractAddress;
+            return `${a.chainName}:${tokenAddress}`;
         })
         .filter(id => id !== null);
 
@@ -43,7 +50,10 @@ export async function POST(request: Request) {
             
             if (data.coins) {
                 for (const asset of coinsToFetch) {
-                    const id = `${asset.chainName}:${asset.contractAddress}`;
+                    // Use mapped token address for lookup (for EigenLayer strategies)
+                    const tokenAddress = strategyToTokenMap[asset.contractAddress?.toLowerCase()] || asset.contractAddress;
+                    const id = `${asset.chainName}:${tokenAddress}`;
+                    
                     if (data.coins[id]) {
                         prices[asset.symbol] = data.coins[id].price;
                     }

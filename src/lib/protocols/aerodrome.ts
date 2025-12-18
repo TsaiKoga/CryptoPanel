@@ -115,7 +115,9 @@ export async function fetchAerodromeAssets(address: string): Promise<Asset[]> {
         functionName: 'length',
     });
 
-    const limit = Math.min(Number(poolCount), 30); // Check top 30 pools
+    // 扫描更多池子以尽量覆盖所有 LP（原先只检查前 30 个）
+    // 如有性能问题可以再调小，比如 100
+    const limit = Math.min(Number(poolCount), 200);
     
     // Also fetch AERO balance
     try {
