@@ -119,40 +119,40 @@ export async function fetchEigenLayerAssets(address: string): Promise<Asset[]> {
           console.warn('[EigenLayer] getDeposits failed, falling back to stakerStrategyShares:', getDepositsError.message);
           
           // Fallback: iterate known strategies and check shares
-          const promises = STRATEGIES.map(async (strategy) => {
-              try {
-                  const shares = await client.readContract({
-                      address: STRATEGY_MANAGER_ADDRESS,
-                      abi: STRATEGY_MANAGER_ABI,
-                      functionName: 'stakerStrategyShares',
-                      args: [address as `0x${string}`, strategy.address as `0x${string}`]
-                  });
-                  
-                  const amount = parseFloat(formatUnits(shares, strategy.decimals));
-                  
-                  if (amount > 0) {
-                      return {
-                          symbol: strategy.symbol,
-                          amount: amount,
+      const promises = STRATEGIES.map(async (strategy) => {
+          try {
+              const shares = await client.readContract({
+                  address: STRATEGY_MANAGER_ADDRESS,
+                  abi: STRATEGY_MANAGER_ABI,
+                  functionName: 'stakerStrategyShares',
+                  args: [address as `0x${string}`, strategy.address as `0x${string}`]
+              });
+              
+              const amount = parseFloat(formatUnits(shares, strategy.decimals));
+              
+              if (amount > 0) {
+                  return {
+                      symbol: strategy.symbol,
+                      amount: amount,
                           valueUsd: 0,
-                          price: 0,
-                          source: 'EigenLayer',
+                      price: 0,
+                      source: 'EigenLayer',
                           type: 'wallet' as const,
                           chainId: mainnet.id,
                           chainName: 'ethereum',
                           contractAddress: strategy.address
-                      };
-                  }
-              } catch (e) {
-                  // Ignore individual strategy errors
+                  };
               }
-              return null;
-          });
-          
-          const results = await Promise.all(promises);
-          results.forEach(res => {
-              if (res) assets.push(res);
-          });
+          } catch (e) {
+                  // Ignore individual strategy errors
+          }
+          return null;
+      });
+      
+      const results = await Promise.all(promises);
+      results.forEach(res => {
+          if (res) assets.push(res);
+      });
       }
 
   } catch (e: any) {

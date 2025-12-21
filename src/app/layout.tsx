@@ -4,6 +4,7 @@ import "./globals.css";
 import { AssetProvider } from "@/components/providers/asset-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { ErrorSuppressor } from "@/components/error-suppressor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <ErrorSuppressor />
         <ThemeProvider
             attribute="class"
             defaultTheme="system"

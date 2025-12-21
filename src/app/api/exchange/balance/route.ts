@@ -465,7 +465,7 @@ export async function POST(request: Request) {
 
     // Fetch balance
     console.log(`[API] Fetching balance for ${type}...`);
-    
+
     const assets: Asset[] = [];
     const symbolsToCheck: string[] = [];
     let spotBalance: any = null;
@@ -527,11 +527,11 @@ export async function POST(request: Request) {
       if (!items) {
         return NextResponse.json({ assets: [] });
       }
-      
-      // Filter non-zero assets
-      for (const [symbol, amount] of Object.entries(items)) {
-        if (amount && amount > 0) {
-          symbolsToCheck.push(symbol);
+    
+    // Filter non-zero assets
+    for (const [symbol, amount] of Object.entries(items)) {
+      if (amount && amount > 0) {
+        symbolsToCheck.push(symbol);
         }
       }
     }
@@ -566,19 +566,19 @@ export async function POST(request: Request) {
     // 对于非OKX交易所，添加现货资产
     if (type !== 'okx' && spotBalance) {
       const items = spotBalance.total as Record<string, number>;
-      
-      for (const symbol of symbolsToCheck) {
+
+    for (const symbol of symbolsToCheck) {
         const amount = items[symbol];
         const price = prices[symbol] || 0;
         const valueUsd = amount * price;
         
         assets.push({
-          symbol,
-          amount,
-          price,
-          valueUsd,
-          source: type === 'binance' ? 'Binance' : 'OKX',
-          type: 'cex'
+            symbol,
+            amount,
+            price,
+            valueUsd,
+            source: type === 'binance' ? 'Binance' : 'OKX',
+            type: 'cex'
         });
       }
     } else if (type === 'okx') {

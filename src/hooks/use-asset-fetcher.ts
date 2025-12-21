@@ -7,6 +7,7 @@ import { fetchOnChainAssets } from '@/lib/onchain';
 import { fetchEigenLayerAssets } from '@/lib/protocols/eigenlayer';
 import { fetchAerodromeAssets } from '@/lib/protocols/aerodrome';
 import { fetchAaveAssets } from '@/lib/protocols/aave';
+import { fetchStargateAssets } from '@/lib/protocols/stargate';
 import { toast } from 'sonner';
 
 export function useAssetFetcher() {
@@ -58,21 +59,26 @@ export function useAssetFetcher() {
       const walletPromises = wallets.map(async (wallet) => {
           try {
               console.log(`[AssetFetcher] Fetching assets for wallet ${wallet.name} (${wallet.address})`);
-              const [onChainAssets, eigenAssets, aerodromeAssets, aaveAssets] = await Promise.all([
+              const [onChainAssets, eigenAssets, aerodromeAssets, aaveAssets, stargateAssets] = await Promise.all([
                   fetchOnChainAssets(wallet.address),
                   fetchEigenLayerAssets(wallet.address).catch(e => {
                       console.error(`[AssetFetcher] EigenLayer fetch failed for ${wallet.address}:`, e);
                       return [];
                   }),
                   fetchAerodromeAssets(wallet.address),
-                  fetchAaveAssets(wallet.address)
+                  fetchAaveAssets(wallet.address),
+                  fetchStargateAssets(wallet.address).catch(e => {
+                      console.error(`[AssetFetcher] Stargate fetch failed for ${wallet.address}:`, e);
+                      return [];
+                  })
               ]);
 
               console.log(`[AssetFetcher] Wallet ${wallet.name} results:`, {
                   onChain: onChainAssets.length,
                   eigen: eigenAssets.length,
                   aerodrome: aerodromeAssets.length,
-                  aave: aaveAssets.length
+                  aave: aaveAssets.length,
+                  stargate: stargateAssets.length
               });
               
 
@@ -96,7 +102,12 @@ export function useAssetFetcher() {
                   source: `${wallet.name} (${a.source})`
               }));
 
-              return [...mappedOnChain, ...mappedEigen, ...mappedAerodrome, ...mappedAave];
+              const mappedStargate = stargateAssets.map(a => ({
+                  ...a,
+                  source: `${wallet.name} (${a.source})`
+              }));
+
+              return [...mappedOnChain, ...mappedEigen, ...mappedAerodrome, ...mappedAave, ...mappedStargate];
           } catch (e: any) {
               console.error(`Failed to fetch ${wallet.name}`, e);
               toast.error(`Wallet Sync Error (${wallet.name})`, { description: "Failed to fetch on-chain data" });
