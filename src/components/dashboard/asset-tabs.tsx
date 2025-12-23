@@ -30,22 +30,34 @@ export function AssetTabs({ assets, loading }: { assets: Asset[], loading: boole
   });
 
   return (
-    <div className="mt-6 space-y-6">
+    <div className="space-y-8">
         <Tabs defaultValue="all" className="w-full">
-            <div className="overflow-x-auto pb-4">
-                <TabsList className="w-auto inline-flex h-auto p-1 bg-muted rounded-md">
-                    <TabsTrigger value="all" className="px-4 py-2">全部汇总</TabsTrigger>
+            <div className="overflow-x-auto pb-4 -mx-1 px-1">
+                <TabsList className="w-auto inline-flex h-auto p-1.5 bg-muted/50 rounded-lg border border-border/50 backdrop-blur-sm">
+                    <TabsTrigger 
+                      value="all" 
+                      className="px-6 py-3 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md min-w-[6rem]"
+                    >
+                      全部汇总
+                    </TabsTrigger>
                     {allAccounts.map(acc => (
-                        <TabsTrigger key={acc.id} value={acc.name} className="px-4 py-2">
+                        <TabsTrigger 
+                          key={acc.id} 
+                          value={acc.name} 
+                          className="px-6 py-3 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md min-w-[6rem]"
+                        >
                             {acc.name}
                         </TabsTrigger>
                     ))}
                 </TabsList>
             </div>
             
-            <TabsContent value="all" className="space-y-6">
+            <TabsContent value="all" className="space-y-8 mt-8">
                 <SummaryCard assets={assets} loading={loading} />
-                <Card>
+                <Card 
+                  className="border-border/50 bg-card/50 backdrop-blur-sm shadow-lg"
+                  style={{ padding: '0' }}
+                >
                     <CardContent className="p-0">
                          <AssetTable assets={assets} />
                     </CardContent>
@@ -53,9 +65,12 @@ export function AssetTabs({ assets, loading }: { assets: Asset[], loading: boole
             </TabsContent>
             
             {allAccounts.map(acc => (
-                <TabsContent key={acc.id} value={acc.name} className="space-y-6">
+                <TabsContent key={acc.id} value={acc.name} className="space-y-8 mt-8">
                     <SummaryCard assets={groupedAssets[acc.name] || []} loading={loading} />
-                    <Card>
+                    <Card 
+                      className="border-border/50 bg-card/50 backdrop-blur-sm shadow-lg"
+                      style={{ padding: '0' }}
+                    >
                         <CardContent className="p-0">
                             <AssetTable assets={groupedAssets[acc.name] || []} />
                         </CardContent>

@@ -27,17 +27,8 @@ export function useAssetFetcher() {
       // 1. Fetch CEX Assets
       const cexPromises = exchanges.map(async (exchange) => {
         try {
-            const res = await fetch('/api/exchange/balance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(exchange)
-            });
-            
-            const data = await res.json().catch(() => null);
-            
-            if (!res.ok) {
-                throw new Error(data?.details || data?.error || `Request failed with status ${res.status}`);
-            }
+            const { fetchExchangeBalance } = await import('@/lib/api');
+            const data = await fetchExchangeBalance(exchange);
             
             if (data?.error) throw new Error(data.error);
             
@@ -123,24 +114,16 @@ export function useAssetFetcher() {
       
       if (assetsToPrice.length > 0) {
           try {
-              // Pass full asset objects to API to support DeFiLlama chain:address lookup
-              const priceRes = await fetch('/api/prices', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ assets: assetsToPrice })
-              });
+              const { fetchPrices } = await import('@/lib/api');
+              const { prices } = await fetchPrices(assetsToPrice);
               
-              if (priceRes.ok) {
-                  const { prices } = await priceRes.json();
-                  
-                  // Update assets with prices
-                  allAssets.forEach(asset => {
-                      if (asset.price === 0 && prices[asset.symbol]) {
-                          asset.price = prices[asset.symbol];
-                          asset.valueUsd = asset.amount * asset.price;
-                      }
-                  });
-              }
+              // Update assets with prices
+              allAssets.forEach(asset => {
+                  if (asset.price === 0 && prices[asset.symbol]) {
+                      asset.price = prices[asset.symbol];
+                      asset.valueUsd = asset.amount * asset.price;
+                  }
+              });
           } catch (e) {
               console.error("Failed to fetch prices for assets", e);
           }

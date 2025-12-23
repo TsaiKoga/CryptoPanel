@@ -3,8 +3,17 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Asset } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PieChart as PieChartIcon } from 'lucide-react';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+// 更美观的颜色方案
+const COLORS = [
+  'oklch(0.488 0.243 264.376)', // 蓝色
+  'oklch(0.696 0.17 162.48)',   // 绿色
+  'oklch(0.769 0.188 70.08)',   // 黄色
+  'oklch(0.627 0.265 303.9)',   // 紫色
+  'oklch(0.645 0.246 16.439)',  // 橙色
+  'oklch(0.556 0 0)',            // 灰色
+];
 
 export function AssetDistribution({ assets }: { assets: Asset[] }) {
   const dataMap = assets.reduce((acc, asset) => {
@@ -28,21 +37,56 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
 
   if (totalAll === 0) {
       return (
-        <Card className="col-span-1">
-            <CardHeader><CardTitle>资产分布</CardTitle></CardHeader>
-            <CardContent className="h-[300px] flex items-center justify-center text-muted-foreground">
-                暂无数据
-            </CardContent>
+        <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm shadow-lg">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+          <CardHeader className="relative">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <PieChartIcon className="h-4 w-4 text-primary" />
+              </div>
+              <CardTitle>资产分布</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="relative h-[300px] flex items-center justify-center text-muted-foreground">
+            <div className="text-center space-y-2">
+              <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
+                <PieChartIcon className="h-8 w-8 opacity-30" />
+              </div>
+              <p className="text-sm">暂无数据</p>
+            </div>
+          </CardContent>
         </Card>
       );
   }
 
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0];
+      const percentage = ((data.value / totalAll) * 100).toFixed(1);
+      return (
+        <div className="bg-card border border-border rounded-lg p-3 shadow-lg backdrop-blur-sm">
+          <p className="font-semibold">{data.name}</p>
+          <p className="text-sm text-muted-foreground">
+            ${data.value.toFixed(2)} ({percentage}%)
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <Card className="col-span-1">
-      <CardHeader>
-        <CardTitle>资产分布</CardTitle>
+    <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
+      <CardHeader className="relative">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <PieChartIcon className="h-4 w-4 text-primary" />
+          </div>
+          <CardTitle>资产分布</CardTitle>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="relative">
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -51,17 +95,30 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
-                outerRadius={80}
-                fill="#8884d8"
-                paddingAngle={5}
+                outerRadius={90}
+                paddingAngle={2}
                 dataKey="value"
               >
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={COLORS[index % COLORS.length]}
+                    className="transition-all hover:opacity-80"
+                  />
                 ))}
               </Pie>
-              <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
-              <Legend />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend 
+                wrapperStyle={{ fontSize: '12px' }}
+                formatter={(value) => {
+                  const item = data.find(d => d.name === value);
+                  if (item) {
+                    const percentage = ((item.value / totalAll) * 100).toFixed(1);
+                    return `${value} (${percentage}%)`;
+                  }
+                  return value;
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>

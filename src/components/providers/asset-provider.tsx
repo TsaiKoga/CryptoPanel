@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ExchangeConfig, WalletConfig, AppSettings } from '@/types';
+import { storage } from '@/lib/storage';
 
 interface StoreData {
   exchanges: ExchangeConfig[];
@@ -17,8 +18,6 @@ interface AssetContextType extends StoreData {
   removeWallet: (id: string) => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
 }
-
-const STORAGE_KEY = 'crypto-panel-data-v1';
 
 const DEFAULT_SETTINGS: AppSettings = {
   hideSmallAssets: true,
@@ -36,28 +35,29 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
   });
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from local storage on mount
+  // Load from storage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
+    storage.get().then((stored) => {
+      if (stored) {
         // Merge with default settings to ensure new fields exist
         setData({
-            ...parsed,
-            settings: { ...DEFAULT_SETTINGS, ...parsed.settings }
+            ...stored,
+            settings: { ...DEFAULT_SETTINGS, ...stored.settings }
         });
-      } catch (e) {
-        console.error("Failed to parse storage", e);
       }
-    }
-    setIsLoaded(true);
+      setIsLoaded(true);
+    }).catch((e) => {
+      console.error("Failed to load storage", e);
+      setIsLoaded(true);
+    });
   }, []);
 
-  // Save to local storage on change
+  // Save to storage on change
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      storage.set(data).catch((e) => {
+        console.error("Failed to save storage", e);
+      });
     }
   }, [data, isLoaded]);
 

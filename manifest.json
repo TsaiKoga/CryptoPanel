@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "CryptoPanel",
+  "version": "1.0.0",
+  "description": "加密货币资产看板 - 统一管理您的 CEX 和链上资产",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://api.binance.com/*",
+    "https://www.okx.com/*",
+    "https://coins.llama.fi/*",
+    "https://min-api.cryptocompare.com/*",
+    "https://*.rpc.thirdweb.com/*",
+    "https://*.infura.io/*",
+    "https://*.alchemy.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "CryptoPanel",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'"
+  }
+}
+
