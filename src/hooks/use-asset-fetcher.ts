@@ -8,6 +8,7 @@ import { fetchEigenLayerAssets } from '@/lib/protocols/eigenlayer';
 import { fetchAerodromeAssets } from '@/lib/protocols/aerodrome';
 import { fetchAaveAssets } from '@/lib/protocols/aave';
 import { fetchStargateAssets } from '@/lib/protocols/stargate';
+import { assetCache } from '@/lib/storage';
 import { toast } from 'sonner';
 
 export function useAssetFetcher() {
@@ -15,9 +16,31 @@ export function useAssetFetcher() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  const fetchAssets = useCallback(async () => {
+  const fetchAssets = useCallback(async (forceRefresh = false) => {
     if (!isLoaded) return;
+    
+    // 如果不是强制刷新，先检查缓存
+    if (!forceRefresh && isInitialLoad) {
+      const cachedAssets = await assetCache.get();
+      if (cachedAssets && cachedAssets.length > 0) {
+        console.log('[AssetFetcher] Using cached assets:', cachedAssets.length);
+        // 应用设置过滤
+        const filteredAssets = settings.hideSmallAssets 
+          ? cachedAssets.filter(a => a.valueUsd >= settings.smallAssetsThreshold)
+          : cachedAssets;
+        filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
+        setAssets(filteredAssets);
+        setIsInitialLoad(false);
+        return;
+      }
+    }
+    
+    // 如果是强制刷新，清除缓存
+    if (forceRefresh) {
+      await assetCache.clear();
+    }
     
     setLoading(true);
     setError(null);
@@ -41,7 +64,20 @@ export function useAssetFetcher() {
             return [];
         } catch (e: any) {
             console.error(`Failed to fetch ${exchange.name}`, e);
-            toast.error(`CEX Sync Error (${exchange.name})`, { description: e.message });
+            
+            // 检查是否是 OKX Passphrase 错误
+            const errorMessage = e.message || String(e);
+            if (errorMessage.includes('50105') || errorMessage.includes('Passphrase incorrect') || errorMessage.includes('OK-ACCESS-PASSPHRASE')) {
+                toast.error(
+                    `OKX Passphrase 错误`,
+                    { 
+                        description: 'OKX API Passphrase 不正确。请检查设置中的 Passphrase 是否与创建 API Key 时设置的完全一致（区分大小写）。',
+                        duration: 8000,
+                    }
+                );
+            } else {
+                toast.error(`CEX Sync Error (${exchange.name})`, { description: e.message });
+            }
             return [];
         }
       });
@@ -119,9 +155,20 @@ export function useAssetFetcher() {
               
               // Update assets with prices
               allAssets.forEach(asset => {
-                  if (asset.price === 0 && prices[asset.symbol]) {
-                      asset.price = prices[asset.symbol];
-                      asset.valueUsd = asset.amount * asset.price;
+                  if (asset.price === 0) {
+                      // 先尝试完整符号匹配
+                      if (prices[asset.symbol]) {
+                          asset.price = prices[asset.symbol];
+                          asset.valueUsd = asset.amount * asset.price;
+                      } else {
+                          // 如果完整符号不匹配，尝试提取基础符号（去掉括号部分）
+                          const baseSymbol = asset.symbol.split(' ')[0].trim();
+                          if (prices[baseSymbol]) {
+                              asset.price = prices[baseSymbol];
+                              asset.valueUsd = asset.amount * asset.price;
+                              console.log(`[AssetFetcher] Updated price for ${asset.symbol} using base symbol ${baseSymbol}: $${asset.price}`);
+                          }
+                      }
                   }
               });
           } catch (e) {
@@ -147,7 +194,11 @@ export function useAssetFetcher() {
       // Sort by value
       filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
       
+      // 保存到缓存
+      await assetCache.set(filteredAssets);
+      
       setAssets(filteredAssets);
+      setIsInitialLoad(false);
     } catch (e) {
       setError("Failed to fetch assets");
       toast.error("Failed to fetch assets", {
@@ -156,15 +207,61 @@ export function useAssetFetcher() {
     } finally {
       setLoading(false);
     }
-  }, [exchanges, wallets, isLoaded, settings]);
+  }, [exchanges, wallets, isLoaded, settings, isInitialLoad]);
 
+  // 初始加载：检查缓存
   useEffect(() => {
-    if (isLoaded && (exchanges.length > 0 || wallets.length > 0)) {
-        fetchAssets();
-    } else {
-        setAssets([]);
+    if (!isLoaded) return;
+    
+    if (exchanges.length === 0 && wallets.length === 0) {
+      setAssets([]);
+      setIsInitialLoad(true);
+      return;
     }
-  }, [fetchAssets, isLoaded, exchanges.length, wallets.length]);
 
-  return { assets, loading, error, refresh: fetchAssets };
+    // 只在初始加载时检查缓存
+    if (isInitialLoad) {
+      assetCache.get().then((cachedAssets) => {
+        if (cachedAssets && cachedAssets.length > 0) {
+          console.log('[AssetFetcher] Using cached assets:', cachedAssets.length);
+          // 应用设置过滤
+          const filteredAssets = settings.hideSmallAssets 
+            ? cachedAssets.filter(a => a.valueUsd >= settings.smallAssetsThreshold)
+            : cachedAssets;
+          filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
+          setAssets(filteredAssets);
+          setIsInitialLoad(false);
+        } else {
+          // 没有缓存，执行获取
+          fetchAssets(false);
+        }
+      }).catch(() => {
+        // 缓存读取失败，执行获取
+        fetchAssets(false);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, exchanges.length, wallets.length, isInitialLoad]);
+  
+  // 当设置改变时，重新过滤已缓存的资产
+  useEffect(() => {
+    if (assets.length > 0 && !loading) {
+      const filteredAssets = settings.hideSmallAssets 
+        ? assets.filter(a => a.valueUsd >= settings.smallAssetsThreshold)
+        : assets;
+      filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
+      if (filteredAssets.length !== assets.length || 
+          filteredAssets.some((a, i) => a.valueUsd !== assets[i]?.valueUsd)) {
+        setAssets(filteredAssets);
+      }
+    }
+  }, [settings.hideSmallAssets, settings.smallAssetsThreshold]);
+
+  // 刷新函数：强制刷新并清除缓存
+  const refresh = useCallback(() => {
+    setIsInitialLoad(false);
+    fetchAssets(true);
+  }, [fetchAssets]);
+
+  return { assets, loading, error, refresh };
 }

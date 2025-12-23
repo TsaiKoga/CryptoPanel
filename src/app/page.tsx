@@ -21,28 +21,28 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
-      <div className="container mx-auto max-w-7xl px-6 py-10 space-y-10">
+      <div className="container mx-auto max-w-7xl px-8 pt-20 pb-24 space-y-10">
         {/* 精美的头部 */}
-        <div className="flex items-start justify-between pb-8 border-b border-border/60">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
+        <div className="flex items-start justify-between pb-8 border-b border-border/60 pt-2">
+          <div className="space-y-4 pl-2">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
                 <Sparkles className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
                   CryptoPanel
                 </h1>
-                <p className="text-lg font-medium text-muted-foreground mt-1">
+                <p className="text-lg font-medium text-muted-foreground mt-2">
                   资产看板
                 </p>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground ml-14">
+            <p className="text-sm text-muted-foreground ml-16">
               统一管理您的加密货币资产
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pt-2 pr-2">
             <ThemeToggle />
             <Button 
               variant="outline" 
@@ -85,7 +85,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-4">
           <div className="lg:col-span-2 space-y-8">
             <AssetTabs assets={assets} loading={loading} />
           </div>

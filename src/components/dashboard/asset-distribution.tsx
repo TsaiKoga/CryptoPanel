@@ -39,7 +39,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
       return (
         <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm shadow-lg">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
-          <CardHeader className="relative">
+          <CardHeader className="relative pt-6 pb-4 px-6">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10">
                 <PieChartIcon className="h-4 w-4 text-primary" />
@@ -47,7 +47,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
               <CardTitle>资产分布</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="relative h-[300px] flex items-center justify-center text-muted-foreground">
+          <CardContent className="relative h-[300px] flex items-center justify-center text-muted-foreground px-6 pb-6">
             <div className="text-center space-y-2">
               <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
                 <PieChartIcon className="h-8 w-8 opacity-30" />
@@ -64,11 +64,13 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
       const data = payload[0];
       const percentage = ((data.value / totalAll) * 100).toFixed(1);
       return (
-        <div className="bg-card border border-border rounded-lg p-3 shadow-lg backdrop-blur-sm">
-          <p className="font-semibold">{data.name}</p>
-          <p className="text-sm text-muted-foreground">
-            ${data.value.toFixed(2)} ({percentage}%)
-          </p>
+        <div className="bg-card border-2 border-border rounded-xl shadow-xl backdrop-blur-sm">
+          <div className="px-5 py-4 space-y-2">
+            <p className="font-semibold text-base leading-tight">{data.name}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              ${data.value.toFixed(2)} <span className="text-muted-foreground/70">({percentage}%)</span>
+            </p>
+          </div>
         </div>
       );
     }
@@ -78,7 +80,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
   return (
     <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
-      <CardHeader className="relative">
+      <CardHeader className="relative pt-6 pb-4 px-6">
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-lg bg-primary/10">
             <PieChartIcon className="h-4 w-4 text-primary" />
@@ -86,7 +88,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
           <CardTitle>资产分布</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="relative">
+      <CardContent className="relative px-6 pb-6">
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -109,7 +111,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
               </Pie>
               <Tooltip content={<CustomTooltip />} />
               <Legend 
-                wrapperStyle={{ fontSize: '12px' }}
+                wrapperStyle={{ fontSize: '12px', paddingTop: '1rem' }}
                 formatter={(value) => {
                   const item = data.find(d => d.name === value);
                   if (item) {

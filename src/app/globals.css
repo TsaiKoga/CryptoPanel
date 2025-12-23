@@ -134,11 +134,36 @@
     min-height: 100vh;
   }
   
-  /* 整体布局居中 */
+  /* 整体布局居中 - 确保有足够的内边距 */
   .container {
     margin-left: auto;
     margin-right: auto;
     width: 100%;
+  }
+  
+  /* 确保主容器有足够的内边距 */
+  .container.mx-auto {
+    padding-left: 2rem !important; /* px-8 */
+    padding-right: 2rem !important;
+  }
+
+  .container .text-sm {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  
+  /* 确保页面顶部有足够的空间 */
+  body {
+    padding-top: 0 !important;
+  }
+  
+  #root {
+    padding: 0 !important;
+  }
+
+  body > #root > div > div.container {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
   }
   
   /* Tab 内间距 */
@@ -212,7 +237,7 @@
     transform: translateY(-1px);
     box-shadow: 0 4px 12px -2px var(--border);
   }
-  
+
   /* 卡片样式 */
   [data-slot="card"] {
     border-radius: 1rem;
@@ -220,12 +245,16 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background-color: var(--card) !important;
   }
+
+  [data-slot="card-header"] {
+    padding: 1rem !important;
+  }
   
   [data-slot="card"]:hover {
     box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     transform: translateY(-2px);
   }
-  
+
   /* 按钮样式 - 确保文字和图标有足够间距 */
   button[data-slot="button"] {
     font-weight: 500;
