@@ -280,7 +280,11 @@
     color: var(--foreground) !important;
     stroke: var(--foreground) !important;
   }
-  
+
+  button[role="combobox"] {
+    width: 10rem !important;
+  }
+
   /* 输入框样式 - 确保 placeholder 文字有足够间距 */
   input[data-slot="input"],
   input[type="text"],

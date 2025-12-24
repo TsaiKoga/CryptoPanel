@@ -12,9 +12,18 @@ interface CachedAssets {
   timestamp: number;
 }
 
+interface CachedRates {
+  btcPrice: number;
+  usdToCny: number;
+  timestamp: number;
+}
+
 const STORAGE_KEY = 'crypto-panel-data-v1';
 const CACHE_KEY = 'crypto-panel-assets-cache-v1';
+const RATES_CACHE_KEY = 'crypto-panel-rates-cache-v1';
+const CURRENCY_KEY = 'crypto-panel-currency-v1';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours (but we'll only use cache until manual refresh)
+const RATES_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes for rates (BTC price and CNY rate)
 
 // Check if running in Chrome extension
 export const isChromeExtension = typeof chrome !== 'undefined' && chrome.storage;
@@ -150,6 +159,148 @@ export const assetCache = {
       });
     } else {
       localStorage.removeItem(CACHE_KEY);
+      return Promise.resolve();
+    }
+  },
+};
+
+// Rates cache utilities (BTC price and USD/CNY rate)
+export const ratesCache = {
+  async get(): Promise<{ btcPrice: number; usdToCny: number } | null> {
+    if (isChromeExtension) {
+      return new Promise((resolve) => {
+        chrome.storage.local.get(RATES_CACHE_KEY, (result) => {
+          try {
+            const cached = result[RATES_CACHE_KEY];
+            if (!cached) {
+              resolve(null);
+              return;
+            }
+            const data: CachedRates = JSON.parse(cached);
+            // Check if cache is still valid (within 30 minutes)
+            const now = Date.now();
+            if (now - data.timestamp < RATES_CACHE_DURATION) {
+              resolve({
+                btcPrice: data.btcPrice,
+                usdToCny: data.usdToCny,
+              });
+            } else {
+              // Cache expired, remove it
+              chrome.storage.local.remove(RATES_CACHE_KEY);
+              resolve(null);
+            }
+          } catch (e) {
+            console.error('Failed to parse rates cache', e);
+            resolve(null);
+          }
+        });
+      });
+    } else {
+      // Fallback to localStorage for web
+      const stored = localStorage.getItem(RATES_CACHE_KEY);
+      if (stored) {
+        try {
+          const data: CachedRates = JSON.parse(stored);
+          const now = Date.now();
+          if (now - data.timestamp < RATES_CACHE_DURATION) {
+            return {
+              btcPrice: data.btcPrice,
+              usdToCny: data.usdToCny,
+            };
+          } else {
+            localStorage.removeItem(RATES_CACHE_KEY);
+            return null;
+          }
+        } catch (e) {
+          console.error('Failed to parse rates cache', e);
+          return null;
+        }
+      }
+      return null;
+    }
+  },
+
+  async set(btcPrice: number, usdToCny: number): Promise<void> {
+    const cacheData: CachedRates = {
+      btcPrice,
+      usdToCny,
+      timestamp: Date.now(),
+    };
+    
+    if (isChromeExtension) {
+      return new Promise((resolve, reject) => {
+        chrome.storage.local.set({ [RATES_CACHE_KEY]: JSON.stringify(cacheData) }, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+    } else {
+      // Fallback to localStorage for web
+      localStorage.setItem(RATES_CACHE_KEY, JSON.stringify(cacheData));
+      return Promise.resolve();
+    }
+  },
+
+  async clear(): Promise<void> {
+    if (isChromeExtension) {
+      return new Promise((resolve) => {
+        chrome.storage.local.remove(RATES_CACHE_KEY, () => {
+          resolve();
+        });
+      });
+    } else {
+      localStorage.removeItem(RATES_CACHE_KEY);
+      return Promise.resolve();
+    }
+  },
+};
+
+// Currency preference utilities (USD, CNY, BTC)
+export const currencyPreference = {
+  async get(): Promise<'USD' | 'CNY' | 'BTC' | null> {
+    if (isChromeExtension) {
+      return new Promise((resolve) => {
+        chrome.storage.local.get(CURRENCY_KEY, (result) => {
+          try {
+            const currency = result[CURRENCY_KEY];
+            if (currency && ['USD', 'CNY', 'BTC'].includes(currency)) {
+              resolve(currency as 'USD' | 'CNY' | 'BTC');
+            } else {
+              resolve(null);
+            }
+          } catch (e) {
+            console.error('Failed to parse currency preference', e);
+            resolve(null);
+          }
+        });
+      });
+    } else {
+      // Fallback to localStorage for web
+      const stored = localStorage.getItem(CURRENCY_KEY);
+      if (stored && ['USD', 'CNY', 'BTC'].includes(stored)) {
+        return stored as 'USD' | 'CNY' | 'BTC';
+      }
+      return null;
+    }
+  },
+
+  async set(currency: 'USD' | 'CNY' | 'BTC'): Promise<void> {
+    if (isChromeExtension) {
+      return new Promise((resolve, reject) => {
+        chrome.storage.local.set({ [CURRENCY_KEY]: currency }, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+    } else {
+      // Fallback to localStorage for web
+      localStorage.setItem(CURRENCY_KEY, currency);
       return Promise.resolve();
     }
   },
