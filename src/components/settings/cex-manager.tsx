@@ -112,7 +112,7 @@ export function CexManager() {
         </div>
         <Button 
           onClick={handleAdd} 
-          className="w-full md:w-auto h-12 px-8 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+          className="add-btn w-full md:w-auto h-12 px-8 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
         >
           <Plus className="w-5 h-5 mr-2" /> {t('cexManager.addExchange')}
         </Button>

@@ -285,6 +285,10 @@
     width: 10rem !important;
   }
 
+  button.add-btn {
+    margin: 1rem 0rem !important;
+  }
+
   /* 输入框样式 - 确保 placeholder 文字有足够间距 */
   input[data-slot="input"],
   input[type="text"],
