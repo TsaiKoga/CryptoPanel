@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Settings, RefreshCw, Sparkles } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { isChromeExtension } from '@/lib/storage';
+import { useI18n } from '@/hooks/use-i18n';
 
 export default function Dashboard() {
   const { assets, loading, error, refresh } = useAssetFetcher();
+  const { t } = useI18n();
 
   const openSettings = () => {
     if (isChromeExtension) {
@@ -34,12 +36,12 @@ export default function Dashboard() {
                   CryptoPanel
                 </h1>
                 <p className="text-lg font-medium text-muted-foreground mt-2">
-                  资产看板
+                  {t('dashboard.title')}
                 </p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground ml-16">
-              统一管理您的加密货币资产
+              {t('dashboard.subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-3 pt-2 pr-2">

@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   hideSmallAssets: true,
   smallAssetsThreshold: 1,
   currency: 'USD',
+  language: 'zh', // Default to Chinese
 };
 
 const AssetContext = createContext<AssetContextType | undefined>(undefined);

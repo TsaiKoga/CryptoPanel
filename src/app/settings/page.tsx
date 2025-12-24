@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { isChromeExtension } from '@/lib/storage';
 import { GeneralSettings } from "@/components/settings/general-settings";
+import { useI18n } from '@/hooks/use-i18n';
 
 export default function SettingsPage() {
+  const { t } = useI18n();
   const goBack = () => {
     if (isChromeExtension) {
       window.close();
@@ -35,7 +37,7 @@ export default function SettingsPage() {
               }}
             />
           </Button>
-          <h1 className="text-4xl font-bold tracking-tight">设置</h1>
+          <h1 className="text-4xl font-bold tracking-tight">{t('settings.pageTitle')}</h1>
         </div>
         
         <Tabs defaultValue="cex" className="w-full">
@@ -44,19 +46,19 @@ export default function SettingsPage() {
               value="cex"
               className="rounded-lg font-semibold data-[state=active]:bg-background data-[state=active]:shadow-md"
             >
-              交易所 (CEX)
+              {t('settings.cexTab')}
             </TabsTrigger>
             <TabsTrigger 
               value="wallet"
               className="rounded-lg font-semibold data-[state=active]:bg-background data-[state=active]:shadow-md"
             >
-              链上钱包 (On-Chain)
+              {t('settings.walletTab')}
             </TabsTrigger>
             <TabsTrigger 
               value="general"
               className="rounded-lg font-semibold data-[state=active]:bg-background data-[state=active]:shadow-md"
             >
-              通用设置
+              {t('settings.generalTab')}
             </TabsTrigger>
           </TabsList>
           <TabsContent value="cex" className="mt-8">

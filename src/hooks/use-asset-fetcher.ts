@@ -10,9 +10,11 @@ import { fetchAaveAssets } from '@/lib/protocols/aave';
 import { fetchStargateAssets } from '@/lib/protocols/stargate';
 import { assetCache } from '@/lib/storage';
 import { toast } from 'sonner';
+import { useI18n } from './use-i18n';
 
 export function useAssetFetcher() {
   const { exchanges, wallets, isLoaded, settings } = useAssetStore();
+  const { t } = useI18n();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,9 +71,9 @@ export function useAssetFetcher() {
             const errorMessage = e.message || String(e);
             if (errorMessage.includes('50105') || errorMessage.includes('Passphrase incorrect') || errorMessage.includes('OK-ACCESS-PASSPHRASE')) {
                 toast.error(
-                    `OKX Passphrase 错误`,
+                    t('errors.okxPassphraseError'),
                     { 
-                        description: 'OKX API Passphrase 不正确。请检查设置中的 Passphrase 是否与创建 API Key 时设置的完全一致（区分大小写）。',
+                        description: t('errors.okxPassphraseErrorDesc'),
                         duration: 8000,
                     }
                 );
@@ -202,7 +204,7 @@ export function useAssetFetcher() {
     } catch (e) {
       setError("Failed to fetch assets");
       toast.error("Failed to fetch assets", {
-        description: "Please check your API keys and network connection."
+        description: e instanceof Error ? e.message : "Please check your API keys and network connection."
       });
     } finally {
       setLoading(false);

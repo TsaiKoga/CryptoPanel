@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { Asset } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart as PieChartIcon } from 'lucide-react';
+import { useI18n } from '@/hooks/use-i18n';
 
 // 更美观的颜色方案
 const COLORS = [
@@ -16,6 +17,7 @@ const COLORS = [
 ];
 
 export function AssetDistribution({ assets }: { assets: Asset[] }) {
+  const { t } = useI18n();
   const dataMap = assets.reduce((acc, asset) => {
     const key = asset.symbol;
     if (!acc[key]) acc[key] = 0;
@@ -44,7 +46,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
               <div className="p-2 rounded-lg bg-primary/10">
                 <PieChartIcon className="h-4 w-4 text-primary" />
               </div>
-              <CardTitle>资产分布</CardTitle>
+              <CardTitle>{t('dashboard.assetDistribution')}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="relative h-[300px] flex items-center justify-center text-muted-foreground px-6 pb-6">
@@ -52,7 +54,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
               <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
                 <PieChartIcon className="h-8 w-8 opacity-30" />
               </div>
-              <p className="text-sm">暂无数据</p>
+              <p className="text-sm">{t('dashboard.noData')}</p>
             </div>
           </CardContent>
         </Card>
@@ -85,7 +87,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
           <div className="p-2 rounded-lg bg-primary/10">
             <PieChartIcon className="h-4 w-4 text-primary" />
           </div>
-          <CardTitle>资产分布</CardTitle>
+          <CardTitle>{t('dashboard.assetDistribution')}</CardTitle>
         </div>
       </CardHeader>
       <CardContent className="relative px-6 pb-6">

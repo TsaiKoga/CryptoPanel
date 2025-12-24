@@ -29,8 +29,11 @@ export interface WalletConfig {
   name: string;
 }
 
+export type Language = 'zh' | 'en';
+
 export interface AppSettings {
   hideSmallAssets: boolean;
   smallAssetsThreshold: number; // e.g. 1 USD
   currency: 'USD';
+  language: Language; // 'zh' for Chinese, 'en' for English
 }

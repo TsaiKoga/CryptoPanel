@@ -6,10 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Asset } from '@/types';
 import { TrendingUp, Wallet, ArrowUpRight } from 'lucide-react';
 import { ratesCache, currencyPreference } from '@/lib/storage';
+import { useI18n } from '@/hooks/use-i18n';
 
 type Currency = 'USD' | 'CNY' | 'BTC';
 
 export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boolean }) {
+  const { t } = useI18n();
   const [currency, setCurrency] = useState<Currency>('USD');
   const [btcPrice, setBtcPrice] = useState<number>(0);
   const [usdToCny, setUsdToCny] = useState<number>(7.2); // 默认汇率，如果API失败则使用此值
@@ -108,7 +110,7 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
   // 根据选择的货币计算总值
   const getDisplayValue = (): string => {
     if (loading || loadingRates) {
-      return '计算中...';
+      return t('dashboard.calculating');
     }
 
     switch (currency) {
@@ -131,8 +133,8 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
             maximumFractionDigits: 8 
           })} BTC`;
         }
-        return '加载中...';
-      default:
+          return t('dashboard.loading');
+        default:
         return `$${totalValueUsd.toLocaleString('en-US', { 
           minimumFractionDigits: 2, 
           maximumFractionDigits: 2 
@@ -169,7 +171,7 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
           </div>
           <div>
             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              总资产估值
+              {t('dashboard.totalAssets')}
             </CardTitle>
             <div className="mt-1">
               <Select 
@@ -217,9 +219,9 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
           </div>
           <div className="flex items-center gap-2.5 pt-2 border-t border-border/50">
             <div className="h-2 w-2 rounded-full bg-primary shadow-lg shadow-primary/50 animate-pulse" />
-            <span className="text-sm font-medium text-muted-foreground">
-              包含 <span className="text-foreground font-semibold">{assetCount}</span> 个资产
-            </span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {t('dashboard.assetCount', { count: assetCount })}
+                  </span>
           </div>
         </div>
       </CardContent>

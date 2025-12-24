@@ -6,9 +6,11 @@ import { SummaryCard } from '@/components/dashboard/summary-card';
 import { Asset } from '@/types';
 import { useAssetStore } from '@/components/providers/asset-provider';
 import { Card, CardContent } from "@/components/ui/card";
+import { useI18n } from '@/hooks/use-i18n';
 
 export function AssetTabs({ assets, loading }: { assets: Asset[], loading: boolean }) {
   const { exchanges, wallets } = useAssetStore();
+  const { t } = useI18n();
 
   const allAccounts = [
       ...exchanges.map(e => ({ id: e.id, name: e.name, type: 'cex' })),
@@ -38,7 +40,7 @@ export function AssetTabs({ assets, loading }: { assets: Asset[], loading: boole
                       value="all" 
                       className="px-6 py-3 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md min-w-[6rem]"
                     >
-                      全部汇总
+                      {t('tabs.all')}
                     </TabsTrigger>
                     {allAccounts.map(acc => (
                         <TabsTrigger 

@@ -1,8 +1,10 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Asset } from '@/types';
 import { ExternalLink, TrendingUp } from 'lucide-react';
+import { useI18n } from '@/hooks/use-i18n';
 
 export function AssetTable({ assets }: { assets: Asset[] }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-2xl border-2 border-border/50 overflow-hidden bg-card/80 backdrop-blur-sm shadow-xl">
       <div className="overflow-x-auto">
@@ -13,31 +15,31 @@ export function AssetTable({ assets }: { assets: Asset[] }) {
                 className="font-bold text-xs uppercase tracking-wider"
                 style={{ padding: '1.75rem 2rem' }}
               >
-                币种
+                {t('assetTable.symbol')}
               </TableHead>
               <TableHead 
                 className="font-bold text-xs uppercase tracking-wider text-right"
                 style={{ padding: '1.75rem 2rem' }}
               >
-                数量
+                {t('assetTable.amount')}
               </TableHead>
               <TableHead 
                 className="font-bold text-xs uppercase tracking-wider text-right"
                 style={{ padding: '1.75rem 2rem' }}
               >
-                单价 (USD)
+                {t('assetTable.price')}
               </TableHead>
               <TableHead 
                 className="font-bold text-xs uppercase tracking-wider text-right"
                 style={{ padding: '1.75rem 2rem' }}
               >
-                总值 (USD)
+                {t('assetTable.value')}
               </TableHead>
               <TableHead 
                 className="font-bold text-xs uppercase tracking-wider"
                 style={{ padding: '1.75rem 2rem' }}
               >
-                来源
+                {t('assetTable.source')}
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -119,8 +121,8 @@ export function AssetTable({ assets }: { assets: Asset[] }) {
                       <div className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-primary/20 animate-pulse" />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-base font-semibold text-foreground">暂无资产数据</p>
-                      <p className="text-sm opacity-70">请在设置中添加 API Key 或钱包地址</p>
+                      <p className="text-base font-semibold text-foreground">{t('dashboard.noAssets')}</p>
+                      <p className="text-sm opacity-70">{t('dashboard.noAssetsDesc')}</p>
                     </div>
                   </div>
                 </TableCell>
