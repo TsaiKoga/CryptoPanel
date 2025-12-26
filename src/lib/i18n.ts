@@ -31,6 +31,7 @@ export const translations = {
       cexTab: '交易所 (CEX)',
       walletTab: '链上钱包 (On-Chain)',
       generalTab: '通用设置',
+      donationTab: '支持项目',
       title: '通用设置',
       subtitle: '配置显示偏好',
       language: '语言',
@@ -89,6 +90,21 @@ export const translations = {
       dark: '深色',
       system: '跟随系统',
     },
+    // Donation
+    donation: {
+      title: '支持 CryptoPanel',
+      description: 'CryptoPanel 是完全免费的开源项目。如果您觉得这个工具对您有帮助，欢迎通过以下方式支持项目开发：',
+      traditional: {
+        title: '传统支付方式',
+      },
+      crypto: {
+        title: '加密货币捐赠',
+        description: '您也可以直接通过加密货币地址进行捐赠：',
+        copy: '复制地址',
+        copied: '已复制',
+      },
+      footer: '感谢您的支持！每一份捐赠都将用于改进 CryptoPanel。',
+    },
   },
   en: {
     // Dashboard
@@ -120,6 +136,7 @@ export const translations = {
       cexTab: 'Exchange (CEX)',
       walletTab: 'On-Chain Wallet',
       generalTab: 'General Settings',
+      donationTab: 'Support',
       title: 'General Settings',
       subtitle: 'Configure display preferences',
       language: 'Language',
@@ -177,6 +194,21 @@ export const translations = {
       light: 'Light',
       dark: 'Dark',
       system: 'System',
+    },
+    // Donation
+    donation: {
+      title: 'Support CryptoPanel',
+      description: 'CryptoPanel is a completely free and open-source project. If you find this tool helpful, please consider supporting the development:',
+      traditional: {
+        title: 'Traditional Payment Methods',
+      },
+      crypto: {
+        title: 'Cryptocurrency Donations',
+        description: 'You can also donate directly via cryptocurrency addresses:',
+        copy: 'Copy Address',
+        copied: 'Copied',
+      },
+      footer: 'Thank you for your support! Every donation helps improve CryptoPanel.',
     },
   },
 };

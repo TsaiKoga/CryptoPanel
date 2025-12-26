@@ -4,7 +4,7 @@ import { useAssetFetcher } from '@/hooks/use-asset-fetcher';
 import { AssetDistribution } from '@/components/dashboard/asset-distribution';
 import { AssetTabs } from '@/components/dashboard/asset-tabs';
 import { Button } from '@/components/ui/button';
-import { Settings, RefreshCw, Sparkles } from 'lucide-react';
+import { Settings, RefreshCw, Sparkles, Heart } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { isChromeExtension } from '@/lib/storage';
 import { useI18n } from '@/hooks/use-i18n';
@@ -18,6 +18,17 @@ export default function Dashboard() {
       chrome.runtime.openOptionsPage();
     } else {
       window.location.href = '/settings';
+    }
+  };
+
+  const openDonation = () => {
+    if (isChromeExtension) {
+      // 使用 chrome.storage 传递 tab 信息
+      chrome.storage.local.set({ openTab: 'donation' }, () => {
+        chrome.runtime.openOptionsPage();
+      });
+    } else {
+      window.location.href = '/settings?tab=donation';
     }
   };
 
@@ -46,6 +57,21 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-3 pt-2 pr-2">
             <ThemeToggle />
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={openDonation}
+              className="h-10 w-10 rounded-xl border-2 hover:border-primary/50 transition-all"
+              title={t('donation.title')}
+            >
+              <Heart 
+                className="h-4 w-4"
+                style={{
+                  color: 'var(--foreground)',
+                  stroke: 'var(--foreground)',
+                }}
+              />
+            </Button>
             <Button 
               variant="outline" 
               size="icon" 

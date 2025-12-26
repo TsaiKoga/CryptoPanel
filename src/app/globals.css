@@ -238,6 +238,10 @@
     box-shadow: 0 4px 12px -2px var(--border);
   }
 
+  td .capitalize {
+    padding: 0 0.5rem !important;
+  }
+
   /* 卡片样式 */
   [data-slot="card"] {
     border-radius: 1rem;
@@ -253,6 +257,10 @@
   [data-slot="card"]:hover {
     box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     transform: translateY(-2px);
+  }
+
+  div[role="tablist"] {
+    margin: 1rem 0 !important;
   }
 
   /* 按钮样式 - 确保文字和图标有足够间距 */
