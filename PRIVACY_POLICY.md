@@ -1,6 +1,6 @@
 # CryptoPanel 隐私政策
 
-**最后更新日期**：2024年12月
+**最后更新日期**：2025年12月
 
 ## 数据收集
 
@@ -50,7 +50,7 @@ CryptoPanel 是一个本地运行的 Chrome 扩展，我们**不会收集、存�
 
 - 所有数据使用 Chrome 的 `chrome.storage.local` API 存储
 - 数据仅存在于您的设备上
-- 我们无法访问您的数据
+- 无法访问您的数据
 - 卸载扩展将删除所有本地数据
 
 ### 第三方服务
@@ -73,8 +73,7 @@ CryptoPanel 是一个本地运行的 Chrome 扩展，我们**不会收集、存�
 
 如有隐私相关问题，请通过以下方式联系：
 
-- GitHub Issues：[项目 GitHub 地址]
-- Email：[您的邮箱]
+- GitHub Issues：[https://github.com/TsaiKoga/CryptoPanel/issues]
 
 ### 政策更新
 
