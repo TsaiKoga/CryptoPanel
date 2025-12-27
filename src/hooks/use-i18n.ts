@@ -5,7 +5,7 @@ import { getTranslation, Language } from '@/lib/i18n';
 
 export function useI18n() {
   const { settings } = useAssetStore();
-  const language = settings.language || 'zh';
+  const language = settings.language || 'en';
 
   const t = (key: string, params?: Record<string, string | number>): string => {
     return getTranslation(language, key, params);

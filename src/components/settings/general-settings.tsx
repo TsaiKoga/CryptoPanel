@@ -43,7 +43,7 @@ export function GeneralSettings() {
           </div>
           <div className="flex-shrink-0 pt-1">
             <Select 
-              value={settings.language || 'zh'} 
+              value={settings.language || 'en'} 
               onValueChange={(value: Language) => updateSettings({ language: value })}
             >
               <SelectTrigger className="h-12 w-32 rounded-xl border-2">
