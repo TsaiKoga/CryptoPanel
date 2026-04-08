@@ -11,6 +11,8 @@ export const translations = {
       assetDistribution: '资产分布',
       calculating: '计算中...',
       loading: '加载中...',
+      partialValueWarning: '部分金额未加载成功',
+      partialAssetWarning: '部分资产未加载成功',
       noAssets: '暂无资产数据',
       noAssetsDesc: '请在设置中添加 API Key 或钱包地址',
       noData: '暂无数据',
@@ -24,6 +26,9 @@ export const translations = {
       price: '单价 (USD)',
       value: '总值 (USD)',
       source: '来源',
+      aggregatedSource: '已整合',
+      aggregateToggle: '整合资产',
+      aggregateToggleDesc: '将不同链/来源的相同币种合并显示，便于统计',
     },
     // Settings
     settings: {
@@ -116,6 +121,8 @@ export const translations = {
       assetDistribution: 'Asset Distribution',
       calculating: 'Calculating...',
       loading: 'Loading...',
+      partialValueWarning: 'Some amounts failed to load',
+      partialAssetWarning: 'Some assets failed to load',
       noAssets: 'No asset data',
       noAssetsDesc: 'Please add API Key or wallet address in settings',
       noData: 'No data',
@@ -129,6 +136,9 @@ export const translations = {
       price: 'Price (USD)',
       value: 'Value (USD)',
       source: 'Source',
+      aggregatedSource: 'Aggregated',
+      aggregateToggle: 'Aggregate',
+      aggregateToggleDesc: 'Merge the same assets across chains/sources for easier statistics',
     },
     // Settings
     settings: {

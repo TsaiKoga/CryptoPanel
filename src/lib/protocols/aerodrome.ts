@@ -66,29 +66,40 @@ export async function fetchAerodromeAssets(address: string): Promise<Asset[]> {
 
     if (veBalance > 0n) {
       let totalLocked = 0n;
-      // Fetch each NFT
+      let supportsTokenOfOwnerByIndex = true;
+      let veEnumerationFailed = false;
+
+      // Some veNFT contracts may not implement ERC721Enumerable.
+      // In that case `tokenOfOwnerByIndex` can revert and should be treated as "unsupported".
       for (let i = 0; i < Number(veBalance); i++) {
+        if (!supportsTokenOfOwnerByIndex) break;
+
         try {
-            const tokenId = await client.readContract({
-                address: veAddress,
-                abi: VE_ABI,
-                functionName: 'tokenOfOwnerByIndex',
-                args: [address as `0x${string}`, BigInt(i)],
-            });
-            
-            const locked = await client.readContract({
-                address: veAddress,
-                abi: VE_ABI,
-                functionName: 'locked',
-                args: [tokenId],
-            });
-            
-            // locked returns (amount, end)
-            // Note: abi defines amount as int128, so we cast. It is actually int128 but represents uint usually.
-            const amount = locked[0]; 
-            totalLocked += BigInt(amount);
+          const tokenId = await client.readContract({
+            address: veAddress,
+            abi: VE_ABI,
+            functionName: 'tokenOfOwnerByIndex',
+            args: [address as `0x${string}`, BigInt(i)],
+          });
+
+          const locked = await client.readContract({
+            address: veAddress,
+            abi: VE_ABI,
+            functionName: 'locked',
+            args: [tokenId],
+          });
+
+          // locked returns (amount, end)
+          // Note: abi defines amount as int128, so we cast. It is actually int128 but represents uint usually.
+          const amount = locked[0];
+          totalLocked += BigInt(amount);
         } catch (e) {
-            console.error('Error fetching veAERO token', i, e);
+          supportsTokenOfOwnerByIndex = false;
+          veEnumerationFailed = true;
+          console.warn(
+            '[Aerodrome] ve contract does not support tokenOfOwnerByIndex; skipping veAERO locked balance.',
+            e
+          );
         }
       }
 
@@ -103,6 +114,21 @@ export async function fetchAerodromeAssets(address: string): Promise<Asset[]> {
               chainId: base.id,
               chainName: 'base',
               contractAddress: veAddress,
+          });
+      } else if (veEnumerationFailed) {
+          // Surface a user-facing warning that some assets failed to load.
+          // We keep this "asset" even if it would normally be filtered out as a small asset.
+          assets.push({
+              symbol: 'veAERO',
+              amount: 0,
+              valueUsd: 0,
+              price: 0,
+              source: 'Aerodrome (Locked)',
+              type: 'wallet',
+              chainId: base.id,
+              chainName: 'base',
+              contractAddress: veAddress,
+              loadFailed: true,
           });
       }
     }

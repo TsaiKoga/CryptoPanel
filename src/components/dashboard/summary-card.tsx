@@ -16,9 +16,12 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
   const [btcPrice, setBtcPrice] = useState<number>(0);
   const [usdToCny, setUsdToCny] = useState<number>(7.2); // 默认汇率，如果API失败则使用此值
   const [loadingRates, setLoadingRates] = useState(false);
+  const [loadingDots, setLoadingDots] = useState(0);
 
   const totalValueUsd = assets.reduce((sum, asset) => sum + asset.valueUsd, 0);
   const assetCount = assets.length;
+  const hasUnpricedAssets = assets.some((a) => a.amount > 0 && a.price === 0);
+  const hasLoadFailedAssets = assets.some((a) => a.loadFailed);
 
   // 初始化时从存储中读取上次选择的货币单位
   useEffect(() => {
@@ -107,10 +110,25 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
     return () => clearInterval(interval);
   }, []);
 
+  // 加载时循环显示省略号
+  useEffect(() => {
+    if (!loading && !loadingRates) {
+      setLoadingDots(0);
+      return;
+    }
+
+    const id = window.setInterval(() => {
+      setLoadingDots((d) => (d + 1) % 4);
+    }, 450);
+
+    return () => window.clearInterval(id);
+  }, [loading, loadingRates]);
+
   // 根据选择的货币计算总值
   const getDisplayValue = (): string => {
     if (loading || loadingRates) {
-      return t('dashboard.calculating');
+      const base = t('dashboard.loading').replace(/[.\u2026]+$/, '');
+      return `${base}${'.'.repeat(loadingDots)}`;
     }
 
     switch (currency) {
@@ -205,18 +223,22 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
         <div className="space-y-4">
           <div className="flex items-baseline gap-2">
             <div className="text-5xl font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground/95 to-foreground/80 bg-clip-text text-transparent">
-              {loading || loadingRates ? (
-                <span className="inline-flex items-center gap-2 text-3xl">
-                  <span className="animate-pulse">计算中...</span>
-                </span>
-              ) : (
-                getDisplayValue()
-              )}
+              {getDisplayValue()}
             </div>
             {!loading && !loadingRates && totalValueUsd > 0 && (
               <ArrowUpRight className="h-5 w-5 text-primary/70" />
             )}
           </div>
+          {!loading && !loadingRates && hasUnpricedAssets && (
+            <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+              {t('dashboard.partialValueWarning')}
+            </div>
+          )}
+          {!loading && !loadingRates && hasLoadFailedAssets && (
+            <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+              {t('dashboard.partialAssetWarning')}
+            </div>
+          )}
           <div className="flex items-center gap-2.5 pt-2 border-t border-border/50">
             <div className="h-2 w-2 rounded-full bg-primary shadow-lg shadow-primary/50 animate-pulse" />
                   <span className="text-sm font-medium text-muted-foreground">

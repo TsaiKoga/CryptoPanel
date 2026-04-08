@@ -6,6 +6,11 @@ export interface Asset {
   source: string; // e.g. "Binance - Main", "Wallet - 0x123..."
   type: 'cex' | 'wallet';
   iconUrl?: string;
+  /**
+   * When true, indicates the asset list is incomplete due to a fetch/enumeration failure.
+   * This is used to surface a user-facing warning without breaking the overall sync.
+   */
+  loadFailed?: boolean;
   // Optional fields for precise price fetching
   chainId?: number;
   contractAddress?: string;

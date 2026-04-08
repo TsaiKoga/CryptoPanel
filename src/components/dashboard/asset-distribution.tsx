@@ -79,6 +79,39 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
     return null;
   };
 
+  const CustomLegend = ({ payload }: any) => {
+    if (!payload || payload.length === 0) return null;
+
+    const items = [...payload].sort((a, b) => {
+      const av = a?.payload?.value ?? a?.value ?? 0;
+      const bv = b?.payload?.value ?? b?.value ?? 0;
+      return bv - av;
+    });
+
+    return (
+      <div className="flex flex-wrap gap-x-6 gap-y-2 pt-4 text-xs">
+        {items.map((entry: any) => {
+          const name = entry?.value ?? entry?.payload?.name ?? '';
+          const value = entry?.payload?.value ?? 0;
+          const percentage = totalAll > 0 ? ((value / totalAll) * 100).toFixed(1) : '0.0';
+          const color = entry?.color ?? entry?.payload?.fill ?? 'currentColor';
+
+          return (
+            <div key={name} className="flex items-center gap-2">
+              <span
+                className="h-3 w-3 rounded-sm"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-muted-foreground">
+                {name} ({percentage}%)
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
@@ -112,17 +145,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ fontSize: '12px', paddingTop: '1rem' }}
-                formatter={(value) => {
-                  const item = data.find(d => d.name === value);
-                  if (item) {
-                    const percentage = ((item.value / totalAll) * 100).toFixed(1);
-                    return `${value} (${percentage}%)`;
-                  }
-                  return value;
-                }}
-              />
+              <Legend content={<CustomLegend />} />
             </PieChart>
           </ResponsiveContainer>
         </div>

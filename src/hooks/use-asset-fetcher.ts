@@ -180,7 +180,7 @@ export function useAssetFetcher() {
       
       // Filter small assets
       const filteredAssets = settings.hideSmallAssets 
-        ? allAssets.filter(a => a.valueUsd >= settings.smallAssetsThreshold)
+        ? allAssets.filter(a => a.loadFailed || a.valueUsd >= settings.smallAssetsThreshold)
         : allAssets;
 
       // Debug: Check EigenLayer and Aave assets
