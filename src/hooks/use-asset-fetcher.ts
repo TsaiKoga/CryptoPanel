@@ -30,7 +30,7 @@ export function useAssetFetcher() {
         console.log('[AssetFetcher] Using cached assets:', cachedAssets.length);
         // 应用设置过滤
         const filteredAssets = settings.hideSmallAssets 
-          ? cachedAssets.filter(a => a.valueUsd >= settings.smallAssetsThreshold)
+          ? cachedAssets.filter(a => a.loadFailed || a.valueUsd >= settings.smallAssetsThreshold)
           : cachedAssets;
         filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
         setAssets(filteredAssets);
@@ -228,7 +228,7 @@ export function useAssetFetcher() {
           console.log('[AssetFetcher] Using cached assets:', cachedAssets.length);
           // 应用设置过滤
           const filteredAssets = settings.hideSmallAssets 
-            ? cachedAssets.filter(a => a.valueUsd >= settings.smallAssetsThreshold)
+            ? cachedAssets.filter(a => a.loadFailed || a.valueUsd >= settings.smallAssetsThreshold)
             : cachedAssets;
           filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
           setAssets(filteredAssets);
@@ -248,8 +248,8 @@ export function useAssetFetcher() {
   // 当设置改变时，重新过滤已缓存的资产
   useEffect(() => {
     if (assets.length > 0 && !loading) {
-      const filteredAssets = settings.hideSmallAssets 
-        ? assets.filter(a => a.valueUsd >= settings.smallAssetsThreshold)
+      const filteredAssets = settings.hideSmallAssets
+        ? assets.filter(a => a.loadFailed || a.valueUsd >= settings.smallAssetsThreshold)
         : assets;
       filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
       if (filteredAssets.length !== assets.length || 
