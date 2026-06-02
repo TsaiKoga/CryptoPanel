@@ -67,16 +67,21 @@ export const translations = {
     // Wallet Manager
     walletManager: {
       title: '钱包地址管理',
-      subtitle: '添加您的链上钱包地址 (仅保存在本地)',
+      subtitle: '添加您的 EVM 或 Solana 钱包地址 (仅保存在本地)',
+      type: '链类型',
+      typeEvm: 'EVM (以太坊等)',
+      typeSol: 'Solana',
       address: '钱包地址',
       addressPlaceholder: '例如: 0x1234...',
+      solAddressPlaceholder: '例如: 7xKX...',
       name: '备注名称',
       namePlaceholder: '例如: 主钱包',
       addWallet: '添加钱包',
       addedWallets: '已添加的钱包',
       noConfig: '暂无配置',
       operation: '操作',
-      invalidAddress: '请输入有效的 EVM 钱包地址',
+      invalidEvmAddress: '请输入有效的 EVM 钱包地址 (0x 开头，42 位)',
+      invalidSolAddress: '请输入有效的 Solana 钱包地址',
     },
     // Tabs
     tabs: {
@@ -177,16 +182,21 @@ export const translations = {
     // Wallet Manager
     walletManager: {
       title: 'Wallet Address Management',
-      subtitle: 'Add your on-chain wallet addresses (stored locally only)',
+      subtitle: 'Add your EVM or Solana wallet addresses (stored locally only)',
+      type: 'Chain Type',
+      typeEvm: 'EVM (Ethereum, etc.)',
+      typeSol: 'Solana',
       address: 'Wallet Address',
       addressPlaceholder: 'e.g.: 0x1234...',
+      solAddressPlaceholder: 'e.g.: 7xKX...',
       name: 'Name',
       namePlaceholder: 'e.g.: Main Wallet',
       addWallet: 'Add Wallet',
       addedWallets: 'Added Wallets',
       noConfig: 'No configuration',
       operation: 'Operation',
-      invalidAddress: 'Please enter a valid EVM wallet address',
+      invalidEvmAddress: 'Please enter a valid EVM address (0x prefix, 42 chars)',
+      invalidSolAddress: 'Please enter a valid Solana address',
     },
     // Tabs
     tabs: {

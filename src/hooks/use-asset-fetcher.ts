@@ -10,7 +10,14 @@ import { fetchAaveAssets } from '@/lib/protocols/aave';
 import { fetchStargateAssets } from '@/lib/protocols/stargate';
 import { assetCache } from '@/lib/storage';
 import { toast } from 'sonner';
+import { fetchSolanaAssets } from '@/lib/solana';
 import { useI18n } from './use-i18n';
+
+function resolveWalletType(wallet: { type?: 'evm' | 'sol'; address: string }): 'evm' | 'sol' {
+  if (wallet.type) return wallet.type;
+  if (wallet.address.startsWith('0x')) return 'evm';
+  return 'sol';
+}
 
 export function useAssetFetcher() {
   const { exchanges, wallets, isLoaded, settings } = useAssetStore();
@@ -87,7 +94,17 @@ export function useAssetFetcher() {
       // 2. Fetch Wallet Assets
       const walletPromises = wallets.map(async (wallet) => {
           try {
-              console.log(`[AssetFetcher] Fetching assets for wallet ${wallet.name} (${wallet.address})`);
+              const walletType = resolveWalletType(wallet);
+              console.log(`[AssetFetcher] Fetching assets for wallet ${wallet.name} (${wallet.address}) type=${walletType}`);
+
+              if (walletType === 'sol') {
+                const solAssets = await fetchSolanaAssets(wallet.address, wallet.name);
+                return solAssets.map((a) => ({
+                  ...a,
+                  source: `${wallet.name} (Solana)`,
+                }));
+              }
+
               const [onChainAssets, eigenAssets, aerodromeAssets, aaveAssets, stargateAssets] = await Promise.all([
                   fetchOnChainAssets(wallet.address),
                   fetchEigenLayerAssets(wallet.address).catch(e => {

@@ -25,8 +25,10 @@ async function sendMessage<T>(message: any): Promise<T> {
         body: JSON.stringify(message.exchange),
       });
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to fetch balance');
+        const error = await res.json().catch(() => ({}));
+        throw new Error(
+          error.error || error.details || `Failed to fetch balance (${res.status})`
+        );
       }
       return res.json();
     }

@@ -1,6 +1,7 @@
-import { createPublicClient, http, parseAbi, formatUnits } from 'viem';
+import { parseAbi, formatUnits } from 'viem';
 import { mainnet } from 'viem/chains';
 import { Asset } from '@/types';
+import { getChainClient } from '@/lib/rpc';
 
 // EigenLayer StrategyManager Contract on Mainnet
 // Source (official docs / Etherscan):
@@ -29,10 +30,7 @@ export async function fetchEigenLayerAssets(address: string): Promise<Asset[]> {
   const assets: Asset[] = [];
   
   // Only Mainnet
-  const client = createPublicClient({
-    chain: mainnet,
-    transport: http(),
-  });
+  const client = getChainClient(mainnet);
 
   if (!address.startsWith('0x') || address.length !== 42) {
       console.warn('[EigenLayer] Invalid address format:', address);

@@ -28,10 +28,13 @@ export interface ExchangeConfig {
   password?: string; // Required for OKX (Passphrase)
 }
 
+export type WalletType = 'evm' | 'sol';
+
 export interface WalletConfig {
   id: string;
   address: string;
   name: string;
+  type?: WalletType; // 旧数据默认 evm
 }
 
 export type Language = 'zh' | 'en';

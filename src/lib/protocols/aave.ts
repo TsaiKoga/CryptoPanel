@@ -1,7 +1,7 @@
-import { createPublicClient, http, parseAbi, formatUnits } from 'viem';
+import { parseAbi, formatUnits } from 'viem';
 import { mainnet, polygon, arbitrum, optimism, base, avalanche, linea, bsc, zksync, xLayer, soneium } from 'viem/chains';
 import { Asset } from '@/types';
-import { getBaseClient } from '@/lib/rpc';
+import { getChainClient } from '@/lib/rpc';
 
 // Aave V3 Pool Contract Addresses
 // Source: https://github.com/bgd-labs/aave-address-book
@@ -134,15 +134,7 @@ export async function fetchAaveAssets(address: string): Promise<Asset[]> {
       // Skip chains without known Aave Pool address
       if (!poolAddress) continue;
 
-      let client;
-        if (chain.id === base.id) {
-        client = getBaseClient();
-        } else {
-        client = createPublicClient({
-        chain,
-        transport: http(),
-      });
-        }
+      const client = getChainClient(chain);
       
       // Basic check if it's a contract (skip if not)
       // Note: for some chains this check might fail due to RPC issues, so we wrap it

@@ -6,28 +6,50 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Trash2, Plus, Wallet } from 'lucide-react';
 import { useI18n } from '@/hooks/use-i18n';
+import { WalletType } from '@/types';
+import { validateSolanaAddress } from '@/lib/solana';
+
+function validateEvmAddress(address: string): boolean {
+  return address.startsWith('0x') && address.length === 42;
+}
 
 export function WalletManager() {
   const { wallets, addWallet, removeWallet } = useAssetStore();
   const { t } = useI18n();
   const [newWallet, setNewWallet] = useState({
+    type: 'evm' as WalletType,
     name: '',
-    address: ''
+    address: '',
   });
 
   const handleAdd = () => {
-    if (newWallet.name && newWallet.address) {
-      if (!newWallet.address.startsWith('0x') || newWallet.address.length !== 42) {
-          alert(t('walletManager.invalidAddress'));
-          return;
+    const address = newWallet.address.trim();
+    if (!newWallet.name || !address) return;
+
+    if (newWallet.type === 'evm') {
+      if (!validateEvmAddress(address)) {
+        alert(t('walletManager.invalidEvmAddress'));
+        return;
       }
-      addWallet(newWallet);
-      setNewWallet({ name: '', address: '' });
+    } else if (!validateSolanaAddress(address)) {
+      alert(t('walletManager.invalidSolAddress'));
+      return;
     }
+
+    addWallet({
+      type: newWallet.type,
+      name: newWallet.name.trim(),
+      address,
+    });
+    setNewWallet({ type: 'evm', name: '', address: '' });
   };
+
+  const walletTypeLabel = (type?: WalletType) =>
+    type === 'sol' ? t('walletManager.typeSol') : t('walletManager.typeEvm');
 
   return (
     <Card className="border-2 border-border/50 shadow-xl">
@@ -45,28 +67,47 @@ export function WalletManager() {
         </div>
       </CardHeader>
       <CardContent className="space-y-8" style={{ padding: '0 2rem 2rem 2rem' }}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold">{t('walletManager.type')}</Label>
+            <Select
+              value={newWallet.type}
+              onValueChange={(v: WalletType) => setNewWallet({ ...newWallet, type: v, address: '' })}
+            >
+              <SelectTrigger className="h-12 rounded-xl border-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="evm">{t('walletManager.typeEvm')}</SelectItem>
+                <SelectItem value="sol">{t('walletManager.typeSol')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-3">
             <Label className="text-sm font-semibold">{t('walletManager.name')}</Label>
-            <Input 
-              placeholder={t('walletManager.namePlaceholder')} 
+            <Input
+              placeholder={t('walletManager.namePlaceholder')}
               value={newWallet.name}
-              onChange={e => setNewWallet({...newWallet, name: e.target.value})}
+              onChange={(e) => setNewWallet({ ...newWallet, name: e.target.value })}
               className="h-12 rounded-xl border-2"
             />
           </div>
           <div className="space-y-3">
             <Label className="text-sm font-semibold">{t('walletManager.address')}</Label>
-            <Input 
-              placeholder={t('walletManager.addressPlaceholder')} 
+            <Input
+              placeholder={
+                newWallet.type === 'sol'
+                  ? t('walletManager.solAddressPlaceholder')
+                  : t('walletManager.addressPlaceholder')
+              }
               value={newWallet.address}
-              onChange={e => setNewWallet({...newWallet, address: e.target.value})}
-              className="h-12 rounded-xl border-2"
+              onChange={(e) => setNewWallet({ ...newWallet, address: e.target.value })}
+              className="h-12 rounded-xl border-2 font-mono text-sm"
             />
           </div>
         </div>
-        <Button 
-          onClick={handleAdd} 
+        <Button
+          onClick={handleAdd}
           className="add-btn w-full md:w-auto h-12 px-8 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
         >
           <Plus className="w-5 h-5 mr-2" /> {t('walletManager.addWallet')}
@@ -87,6 +128,7 @@ export function WalletManager() {
                 <TableHeader>
                   <TableRow className="bg-gradient-to-r from-muted/50 to-transparent border-b-2">
                     <TableHead style={{ padding: '1.5rem 2rem' }}>{t('walletManager.name')}</TableHead>
+                    <TableHead style={{ padding: '1.5rem 2rem' }}>{t('walletManager.type')}</TableHead>
                     <TableHead style={{ padding: '1.5rem 2rem' }}>{t('walletManager.address')}</TableHead>
                     <TableHead className="text-right" style={{ padding: '1.5rem 2rem' }}>{t('walletManager.operation')}</TableHead>
                   </TableRow>
@@ -97,14 +139,19 @@ export function WalletManager() {
                       <TableCell className="font-semibold" style={{ padding: '1.5rem 2rem' }}>
                         {wallet.name}
                       </TableCell>
+                      <TableCell style={{ padding: '1.5rem 2rem' }}>
+                        <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-muted">
+                          {walletTypeLabel(wallet.type)}
+                        </span>
+                      </TableCell>
                       <TableCell className="font-mono text-xs" style={{ padding: '1.5rem 2rem' }}>
                         <span className="text-muted-foreground break-all">
                           {wallet.address}
                         </span>
                       </TableCell>
                       <TableCell className="text-right" style={{ padding: '1.5rem 2rem' }}>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="icon"
                           onClick={() => removeWallet(wallet.id)}
                           className="h-9 w-9 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all"

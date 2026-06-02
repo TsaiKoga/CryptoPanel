@@ -87,6 +87,15 @@ export async function POST(request: Request) {
             'ZRO': 'ZRO',
             'ZORA': 'ZORA',
             'VIRTUAL': 'VIRTUAL',
+            'JTO': 'JTO',
+            'BONK': 'BONK',
+            'WIF': 'WIF',
+            'SKR': 'SKR',
+            'JitoSOL': 'JITOSOL',
+            'mSOL': 'MSOL',
+            'RAY': 'RAY',
+            'JUP': 'JUP',
+            'PYTH': 'PYTH',
         };
 
         const fetchSymbols = symbols.map(s => symbolMapping[s] || s);

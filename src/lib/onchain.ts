@@ -1,7 +1,7 @@
-import { createPublicClient, http, formatUnits, parseAbi, defineChain } from 'viem';
+import { formatUnits, parseAbi, defineChain } from 'viem';
 import { mainnet, bsc, polygon, optimism, arbitrum, base, zksync, soneium, xLayer, avalanche, linea } from 'viem/chains';
 import { Asset } from '@/types';
-import { getBaseClient } from '@/lib/rpc';
+import { getChainClient } from '@/lib/rpc';
 import { hyperEvm } from '@/lib/chains/hyperevm';
 
 // Define Ink Chain
@@ -178,15 +178,7 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
   
   const promises = Object.values(SUPPORTED_CHAINS).map(async (chain) => {
     try {
-      let client;
-      if (chain.id === base.id) {
-        client = getBaseClient();
-      } else {
-        client = createPublicClient({
-            chain,
-            transport: http(),
-        });
-      }
+      const client = getChainClient(chain);
 
       // Validate address format
       if (!address.startsWith('0x') || address.length !== 42) {

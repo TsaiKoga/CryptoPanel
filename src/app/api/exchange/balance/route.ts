@@ -1,9 +1,44 @@
 import { NextResponse } from 'next/server';
-import ccxt from 'ccxt';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import nodeFetch from 'node-fetch';
 import { Asset } from '@/types';
 import crypto from 'crypto';
+
+function createProxyAgent(): HttpsProxyAgent<string> | undefined {
+  const proxyUrl =
+    process.env.HTTPS_PROXY ||
+    process.env.HTTP_PROXY ||
+    process.env.https_proxy ||
+    process.env.http_proxy ||
+    process.env.ALL_PROXY;
+
+  if (!proxyUrl) {
+    console.log('[API] No proxy environment variable found (HTTP_PROXY/HTTPS_PROXY)');
+    return undefined;
+  }
+
+  console.log(`[API] Using proxy: ${proxyUrl}`);
+  try {
+    return new HttpsProxyAgent(proxyUrl);
+  } catch (e) {
+    console.error('[API] Failed to create proxy agent:', e);
+    return undefined;
+  }
+}
+
+function networkErrorHint(message: string): string {
+  if (message.includes('instanceof')) {
+    return `${message}。请重启 npm run dev 以加载最新交易所 API（已移除 CCXT）。`;
+  }
+  if (
+    message.includes('169.254.') ||
+    message.includes('ETIMEDOUT') ||
+    message.includes('ECONNREFUSED')
+  ) {
+    return `${message}。请在 .env.local 设置 HTTPS_PROXY（如 http://127.0.0.1:7890）后重启 npm run dev。`;
+  }
+  return message;
+}
 
 // 币安 API 签名辅助函数
 async function binanceSignedRequest(
@@ -334,42 +369,36 @@ async function fetchOKXFundingAssets(
   apiKey: string,
   secret: string,
   passphrase: string,
-  proxyAgent?: any
+  proxyAgent?: HttpsProxyAgent<string>
 ): Promise<Asset[]> {
   const assets: Asset[] = [];
-  
-  try {
-    const fundingBalances = await okxSignedRequest(
-      '/api/v5/asset/balances',
-      'GET',
-      apiKey,
-      secret,
-      passphrase,
-      '',
-      proxyAgent
-    );
-    
-    console.log('[OKX] Funding account response:', JSON.stringify(fundingBalances, null, 2));
-    
-    if (Array.isArray(fundingBalances)) {
-      for (const balance of fundingBalances) {
-        const amount = parseFloat(balance.bal || balance.availBal || '0');
-        if (amount > 0) {
-          assets.push({
-            symbol: balance.ccy || 'UNKNOWN',
-            amount,
-            price: 0,
-            valueUsd: 0,
-            source: 'OKX - 资金账号',
-            type: 'cex',
-          });
-        }
+
+  const fundingBalances = await okxSignedRequest(
+    '/api/v5/asset/balances',
+    'GET',
+    apiKey,
+    secret,
+    passphrase,
+    '',
+    proxyAgent
+  );
+
+  if (Array.isArray(fundingBalances)) {
+    for (const balance of fundingBalances) {
+      const amount = parseFloat(balance.bal || balance.availBal || '0');
+      if (amount > 0) {
+        assets.push({
+          symbol: balance.ccy || 'UNKNOWN',
+          amount,
+          price: 0,
+          valueUsd: 0,
+          source: 'OKX - 资金账号',
+          type: 'cex',
+        });
       }
     }
-  } catch (e: any) {
-    console.warn('[OKX] Failed to fetch funding account:', e.message);
   }
-  
+
   return assets;
 }
 
@@ -378,46 +407,176 @@ async function fetchOKXTradingAssets(
   apiKey: string,
   secret: string,
   passphrase: string,
-  proxyAgent?: any
+  proxyAgent?: HttpsProxyAgent<string>
 ): Promise<Asset[]> {
   const assets: Asset[] = [];
-  
-  try {
-    const tradingBalance = await okxSignedRequest(
-      '/api/v5/account/balance',
-      'GET',
-      apiKey,
-      secret,
-      passphrase,
-      '',
-      proxyAgent
-    );
-    
-    console.log('[OKX] Trading account response:', JSON.stringify(tradingBalance, null, 2));
-    
-    if (Array.isArray(tradingBalance) && tradingBalance.length > 0) {
-      const accountData = tradingBalance[0];
-      if (accountData.details && Array.isArray(accountData.details)) {
-        for (const detail of accountData.details) {
-          const amount = parseFloat(detail.eq || detail.availEq || detail.cashBal || '0');
-          if (amount > 0) {
-            assets.push({
-              symbol: detail.ccy || 'UNKNOWN',
-              amount,
-              price: 0,
-              valueUsd: 0,
-              source: 'OKX - 交易账号',
-              type: 'cex',
-            });
-          }
+
+  const tradingBalance = await okxSignedRequest(
+    '/api/v5/account/balance',
+    'GET',
+    apiKey,
+    secret,
+    passphrase,
+    '',
+    proxyAgent
+  );
+
+  if (Array.isArray(tradingBalance) && tradingBalance.length > 0) {
+    const accountData = tradingBalance[0];
+    if (accountData.details && Array.isArray(accountData.details)) {
+      for (const detail of accountData.details) {
+        const amount = parseFloat(detail.eq || detail.availEq || detail.cashBal || '0');
+        if (amount > 0) {
+          assets.push({
+            symbol: detail.ccy || 'UNKNOWN',
+            amount,
+            price: 0,
+            valueUsd: 0,
+            source: 'OKX - 交易账号',
+            type: 'cex',
+          });
         }
       }
     }
-  } catch (e: any) {
-    console.warn('[OKX] Failed to fetch trading account:', e.message);
   }
-  
+
   return assets;
+}
+
+async function fetchBinanceSpotBalance(
+  apiKey: string,
+  secret: string,
+  proxyAgent?: HttpsProxyAgent<string>
+): Promise<Asset[]> {
+  const assets: Asset[] = [];
+  const accountInfo = await binanceSignedRequest(
+    '/api/v3/account',
+    apiKey,
+    secret,
+    {},
+    proxyAgent
+  );
+
+  if (accountInfo.balances && Array.isArray(accountInfo.balances)) {
+    for (const balance of accountInfo.balances) {
+      const amount =
+        parseFloat(balance.free || '0') + parseFloat(balance.locked || '0');
+      if (amount > 0) {
+        assets.push({
+          symbol: balance.asset,
+          amount,
+          price: 0,
+          valueUsd: 0,
+          source: 'Binance',
+          type: 'cex',
+        });
+      }
+    }
+  }
+
+  return assets;
+}
+
+async function fetchBinancePrices(
+  symbols: string[],
+  proxyAgent?: HttpsProxyAgent<string>
+): Promise<Record<string, number>> {
+  const prices: Record<string, number> = {
+    USDT: 1,
+    USDC: 1,
+    DAI: 1,
+    FDUSD: 1,
+    BUSD: 1,
+  };
+
+  const symbolsToFetch = symbols
+    .filter((s) => !prices[s] && s.trim() !== '')
+    .map((s) => `${s.trim()}USDT`)
+    .filter((s) => s !== 'USDTUSDT');
+
+  if (symbolsToFetch.length === 0) return prices;
+
+  const fetchOptions: { agent?: HttpsProxyAgent<string> } = {};
+  if (proxyAgent) fetchOptions.agent = proxyAgent;
+
+  const applyTicker = (symbol: string, price: string) => {
+    prices[symbol.replace('USDT', '')] = parseFloat(price);
+  };
+
+  try {
+    const symbolsArray = symbolsToFetch.map((s) => `"${s}"`).join(',');
+    const url = `https://api.binance.com/api/v3/ticker/price?symbols=[${symbolsArray}]`;
+    const response = await nodeFetch(url, fetchOptions);
+    if (response.ok) {
+      const data = (await response.json()) as Array<{ symbol: string; price: string }>;
+      if (Array.isArray(data)) {
+        for (const ticker of data) {
+          if (ticker.symbol && ticker.price) applyTicker(ticker.symbol, ticker.price);
+        }
+        return prices;
+      }
+    }
+  } catch (e) {
+    console.warn('[Binance] Batch price request failed:', e);
+  }
+
+  for (const symbolPair of symbolsToFetch) {
+    try {
+      const url = `https://api.binance.com/api/v3/ticker/price?symbol=${symbolPair}`;
+      const response = await nodeFetch(url, fetchOptions);
+      if (response.ok) {
+        const data = (await response.json()) as { symbol: string; price: string };
+        if (data.symbol && data.price) applyTicker(data.symbol, data.price);
+      }
+    } catch {
+      /* skip */
+    }
+  }
+
+  return prices;
+}
+
+async function fetchOKXPrices(
+  symbols: string[],
+  proxyAgent?: HttpsProxyAgent<string>
+): Promise<Record<string, number>> {
+  const prices: Record<string, number> = {
+    USDT: 1,
+    USDC: 1,
+    DAI: 1,
+    FDUSD: 1,
+    BUSD: 1,
+  };
+
+  const symbolsParam = symbols
+    .filter((s) => !prices[s])
+    .map((s) => `${s}-USDT`)
+    .join(',');
+
+  if (!symbolsParam) return prices;
+
+  const fetchOptions: { agent?: HttpsProxyAgent<string> } = {};
+  if (proxyAgent) fetchOptions.agent = proxyAgent;
+
+  const response = await nodeFetch(
+    `https://www.okx.com/api/v5/market/tickers?instId=${symbolsParam}`,
+    fetchOptions
+  );
+
+  if (response.ok) {
+    const data = (await response.json()) as {
+      code: string;
+      data?: Array<{ instId: string; last: string }>;
+    };
+    if (data.code === '0' && Array.isArray(data.data)) {
+      for (const ticker of data.data) {
+        const baseSymbol = ticker.instId.split('-')[0];
+        prices[baseSymbol] = parseFloat(ticker.last || '0');
+      }
+    }
+  }
+
+  return prices;
 }
 
 export async function POST(request: Request) {
@@ -428,225 +587,102 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
     }
 
-    let exchange;
-    const config: any = {
-        apiKey,
-        secret,
-        password, // For OKX
-        enableRateLimit: true,
-        timeout: 30000,
-        options: {
-            'defaultType': 'spot', 
-        },
-        // Force usage of node-fetch which works better with http.Agent proxies than native fetch
-        fetchImplementation: nodeFetch 
-    };
-
-    // Setup proxy if environment variable is set
-    const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.https_proxy || process.env.http_proxy;
-    if (proxyUrl) {
-        console.log(`[API] Using proxy for CCXT: ${proxyUrl}`);
-        try {
-            config.agent = new HttpsProxyAgent(proxyUrl);
-        } catch (e) {
-            console.error(`[API] Failed to create proxy agent:`, e);
-        }
-    } else {
-        console.log(`[API] No proxy environment variable found (HTTP_PROXY/HTTPS_PROXY)`);
-    }
-
-    if (type === 'binance') {
-      exchange = new ccxt.binance(config);
-    } else if (type === 'okx') {
-      exchange = new ccxt.okx(config);
-    } else {
+    if (type !== 'binance' && type !== 'okx') {
       return NextResponse.json({ error: 'Unsupported exchange' }, { status: 400 });
     }
 
-    // Fetch balance
-    console.log(`[API] Fetching balance for ${type}...`);
-
+    const proxyAgent = createProxyAgent();
     const assets: Asset[] = [];
-    const symbolsToCheck: string[] = [];
-    let spotBalance: any = null;
-    
-    // 对于 OKX，分别获取资金账号和交易账号
-    if (type === 'okx') {
-      try {
-        // 获取资金账号资产
-        const fundingAssets = await fetchOKXFundingAssets(
-          apiKey,
-          secret,
-          password || '',
-          config.agent
-        );
-        assets.push(...fundingAssets);
-        
-        // 获取交易账号资产
-        const tradingAssets = await fetchOKXTradingAssets(
-          apiKey,
-          secret,
-          password || '',
-          config.agent
-        );
-        assets.push(...tradingAssets);
-        
-        // 收集所有币种用于价格查询
-        assets.forEach(asset => {
-          if (asset.amount > 0 && !symbolsToCheck.includes(asset.symbol)) {
-            symbolsToCheck.push(asset.symbol);
-          }
-        });
-      } catch (e: any) {
-        console.warn('[OKX] Failed to fetch account assets:', e.message);
-        // 如果直接API调用失败，回退到使用CCXT
-        spotBalance = await exchange.fetchBalance();
-        const items = spotBalance.total as Record<string, number>;
-        if (items) {
-          for (const [symbol, amount] of Object.entries(items)) {
-            if (amount && amount > 0) {
-              symbolsToCheck.push(symbol);
-              assets.push({
-                symbol,
-                amount,
-                price: 0,
-                valueUsd: 0,
-                source: 'OKX',
-                type: 'cex'
-              });
-            }
-          }
+
+    console.log(`[API] Fetching balance for ${type} (direct API, no CCXT)...`);
+
+    if (type === 'binance') {
+      const spotAssets = await fetchBinanceSpotBalance(apiKey, secret, proxyAgent);
+      assets.push(...spotAssets);
+
+      const earnAssets = await fetchBinanceEarnAssets(apiKey, secret, proxyAgent);
+      assets.push(...earnAssets);
+
+      const symbolsToCheck: string[] = [];
+      assets.forEach((asset) => {
+        const base = asset.symbol.split(' ')[0].trim();
+        if (asset.amount > 0 && base && !symbolsToCheck.includes(base)) {
+          symbolsToCheck.push(base);
         }
-      }
+      });
+
+      const prices = await fetchBinancePrices(symbolsToCheck, proxyAgent);
+      assets.forEach((asset) => {
+        const base = asset.symbol.split(' ')[0].trim();
+        const price = prices[base] || 0;
+        asset.price = price;
+        asset.valueUsd = asset.amount * price;
+      });
     } else {
-      // 币安或其他交易所使用CCXT
-      spotBalance = await exchange.fetchBalance();
-      console.log(`[API] Balance fetched successfully`);
-      
-      const items = spotBalance.total as Record<string, number>;
-      if (!items) {
-        return NextResponse.json({ assets: [] });
+      if (!password || !password.trim()) {
+        return NextResponse.json(
+          {
+            error:
+              'OKX 需要填写 Passphrase（与创建 API Key 时设置的完全一致，区分大小写）',
+          },
+          { status: 400 }
+        );
       }
-    
-    // Filter non-zero assets
-    for (const [symbol, amount] of Object.entries(items)) {
-      if (amount && amount > 0) {
-        symbolsToCheck.push(symbol);
+
+      const passphrase = password.trim();
+      let okxError: string | undefined;
+
+      try {
+        assets.push(
+          ...(await fetchOKXFundingAssets(apiKey, secret, passphrase, proxyAgent))
+        );
+      } catch (e: unknown) {
+        okxError = e instanceof Error ? e.message : String(e);
+        console.error('[OKX] Failed to fetch funding account:', okxError);
+      }
+
+      try {
+        assets.push(
+          ...(await fetchOKXTradingAssets(apiKey, secret, passphrase, proxyAgent))
+        );
+      } catch (e: unknown) {
+        okxError = e instanceof Error ? e.message : String(e);
+        console.error('[OKX] Failed to fetch trading account:', okxError);
+      }
+
+      if (assets.length === 0) {
+        throw new Error(
+          networkErrorHint(
+            okxError || '无法获取 OKX 余额，请检查 API Key、Passphrase 与网络/代理'
+          )
+        );
+      }
+
+      const symbolsToCheck: string[] = [];
+      assets.forEach((asset) => {
+        if (asset.amount > 0 && !symbolsToCheck.includes(asset.symbol)) {
+          symbolsToCheck.push(asset.symbol);
         }
-      }
-    }
+      });
 
-    // Separate Price Fetching Logic
-    const prices: Record<string, number> = {
-        'USDT': 1,
-        'USDC': 1,
-        'DAI': 1,
-        'FDUSD': 1,
-        'BUSD': 1
-    };
-    
-    const pairsToFetch = symbolsToCheck
-        .filter(s => !prices[s])
-        .map(s => `${s}/USDT`);
-
-    if (pairsToFetch.length > 0) {
-        try {
-            const tickers = await exchange.fetchTickers(pairsToFetch);
-            for (const [symbol, ticker] of Object.entries(tickers)) {
-                if (ticker && ticker.last !== undefined) {
-                    const base = symbol.split('/')[0];
-                    prices[base] = ticker.last;
-                }
-            }
-        } catch (e) {
-            console.warn("CCXT Price fetch failed, continuing with 0 price", e);
-        }
-    }
-
-    // 对于非OKX交易所，添加现货资产
-    if (type !== 'okx' && spotBalance) {
-      const items = spotBalance.total as Record<string, number>;
-
-    for (const symbol of symbolsToCheck) {
-        const amount = items[symbol];
-        const price = prices[symbol] || 0;
-        const valueUsd = amount * price;
-        
-        assets.push({
-            symbol,
-            amount,
-            price,
-            valueUsd,
-            source: type === 'binance' ? 'Binance' : 'OKX',
-            type: 'cex'
-        });
-      }
-    } else if (type === 'okx') {
-      // 对于OKX，更新已获取资产的价格
-      assets.forEach(asset => {
+      const prices = await fetchOKXPrices(symbolsToCheck, proxyAgent);
+      assets.forEach((asset) => {
         const price = prices[asset.symbol] || 0;
         asset.price = price;
         asset.valueUsd = asset.amount * price;
       });
     }
-    
-    // 获取币安理财资产
-    if (type === 'binance') {
-      try {
-        const earnAssets = await fetchBinanceEarnAssets(
-          apiKey,
-          secret,
-          config.agent
-        );
-        
-        // 为理财资产获取价格
-        const earnSymbols = earnAssets.map(a => {
-          // 从 "BTC (灵活赚币)" 提取 "BTC"
-          const match = a.symbol.match(/^([A-Z0-9]+)\s*\(/);
-          return match ? match[1] : a.symbol;
-        });
-        
-        const earnPairsToFetch = earnSymbols
-          .filter(s => !prices[s])
-          .map(s => `${s}/USDT`);
-        
-        if (earnPairsToFetch.length > 0) {
-          try {
-            const tickers = await exchange.fetchTickers(earnPairsToFetch);
-            for (const [symbol, ticker] of Object.entries(tickers)) {
-              if (ticker && ticker.last !== undefined) {
-                const base = symbol.split('/')[0];
-                prices[base] = ticker.last;
-              }
-            }
-          } catch (e) {
-            console.warn("Failed to fetch prices for earn assets", e);
-          }
-        }
-        
-        // 更新理财资产的价格和 USD 价值
-        earnAssets.forEach(asset => {
-          const match = asset.symbol.match(/^([A-Z0-9]+)\s*\(/);
-          const baseSymbol = match ? match[1] : asset.symbol;
-          const price = prices[baseSymbol] || 0;
-          asset.price = price;
-          asset.valueUsd = asset.amount * price;
-        });
-        
-        assets.push(...earnAssets);
-      } catch (e: any) {
-        console.warn('[Binance] Failed to fetch earn assets:', e.message);
-        // 不阻断主流程，继续返回现货资产
-      }
-    }
-    
+
     assets.sort((a, b) => b.valueUsd - a.valueUsd);
 
     return NextResponse.json({ assets });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Exchange API Error:', error);
+    const message = networkErrorHint(
+      error instanceof Error ? error.message : 'Failed to fetch balance'
+    );
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch balance', details: error.toString() },
+      { error: message, details: String(error) },
       { status: 500 }
     );
   }

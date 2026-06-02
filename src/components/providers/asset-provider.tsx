@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { ExchangeConfig, WalletConfig, AppSettings } from '@/types';
 import { storage } from '@/lib/storage';
+import { randomUUID } from '@/lib/uuid';
 
 interface StoreData {
   exchanges: ExchangeConfig[];
@@ -65,7 +66,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
   const addExchange = (config: Omit<ExchangeConfig, 'id'>) => {
     const newExchange: ExchangeConfig = {
       ...config,
-      id: crypto.randomUUID(),
+      id: randomUUID(),
     };
     setData(prev => ({ ...prev, exchanges: [...prev.exchanges, newExchange] }));
   };
@@ -77,7 +78,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
   const addWallet = (config: Omit<WalletConfig, 'id'>) => {
     const newWallet: WalletConfig = {
       ...config,
-      id: crypto.randomUUID(),
+      id: randomUUID(),
     };
     setData(prev => ({ ...prev, wallets: [...prev.wallets, newWallet] }));
   };

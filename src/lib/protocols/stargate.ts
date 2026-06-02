@@ -1,6 +1,7 @@
-import { createPublicClient, http, parseAbi, formatUnits } from 'viem';
+import { parseAbi, formatUnits } from 'viem';
 import { arbitrum, mainnet, base, optimism, polygon, bsc, avalanche } from 'viem/chains';
 import { Asset } from '@/types';
+import { getChainClient } from '@/lib/rpc';
 
 // Stargate LP Staking Farm Contract Addresses
 // Source: https://stargateprotocol.gitbook.io/stargate/developers/contract-addresses/mainnet
@@ -44,10 +45,7 @@ export async function fetchStargateAssets(address: string): Promise<Asset[]> {
       const stakingAddress = STAKING_CONTRACTS[chain.id];
       if (!stakingAddress) continue;
 
-      const client = createPublicClient({
-        chain,
-        transport: http(),
-      });
+      const client = getChainClient(chain);
 
       // Get pool count - try multiple possible function names
       let poolCount = 0n;
