@@ -70,10 +70,13 @@
 - ✅ **Ink**
 - ✅ **Plume**
 - ✅ **HyperEVM**
+- ✅ **Solona**
+- ✅ **Hyperliquid**
 
 ## 🛠️ 支持的 DeFi 协议
 
 - ✅ **EigenLayer** - 质押资产
+- ✅ **HyperCore** - 质押资产
 - ✅ **Aerodrome** - 流动性池
 - ✅ **Aave** - 借贷资产
 - ✅ **Stargate** - 跨链资产

@@ -12,6 +12,7 @@ import { assetCache } from '@/lib/storage';
 import { toast } from 'sonner';
 import { fetchSolanaAssets } from '@/lib/solana';
 import { useI18n } from './use-i18n';
+import { fetchHyperliquidAssets } from '@/lib/hyperliquid';
 
 function resolveWalletType(wallet: { type?: 'evm' | 'sol'; address: string }): 'evm' | 'sol' {
   if (wallet.type) return wallet.type;
@@ -105,7 +106,7 @@ export function useAssetFetcher() {
                 }));
               }
 
-              const [onChainAssets, eigenAssets, aerodromeAssets, aaveAssets, stargateAssets] = await Promise.all([
+              const [onChainAssets, eigenAssets, aerodromeAssets, aaveAssets, stargateAssets, hyperliquidAssets] = await Promise.all([
                   fetchOnChainAssets(wallet.address),
                   fetchEigenLayerAssets(wallet.address).catch(e => {
                       console.error(`[AssetFetcher] EigenLayer fetch failed for ${wallet.address}:`, e);
@@ -116,7 +117,11 @@ export function useAssetFetcher() {
                   fetchStargateAssets(wallet.address).catch(e => {
                       console.error(`[AssetFetcher] Stargate fetch failed for ${wallet.address}:`, e);
                       return [];
-                  })
+                  }),
+                  fetchHyperliquidAssets(wallet.address, wallet.name).catch(e => {
+                      console.error(`[AssetFetcher] Hyperliquid fetch failed for ${wallet.address}:`, e);
+                      return [];
+                  }),
               ]);
 
               console.log(`[AssetFetcher] Wallet ${wallet.name} results:`, {
@@ -124,7 +129,8 @@ export function useAssetFetcher() {
                   eigen: eigenAssets.length,
                   aerodrome: aerodromeAssets.length,
                   aave: aaveAssets.length,
-                  stargate: stargateAssets.length
+                  stargate: stargateAssets.length,
+                  hyperliquid: hyperliquidAssets.length,
               });
               
 
@@ -153,7 +159,7 @@ export function useAssetFetcher() {
                   source: `${wallet.name} (${a.source})`
               }));
 
-              return [...mappedOnChain, ...mappedEigen, ...mappedAerodrome, ...mappedAave, ...mappedStargate];
+              return [...mappedOnChain, ...mappedEigen, ...mappedAerodrome, ...mappedAave, ...mappedStargate, ...hyperliquidAssets];
           } catch (e: any) {
               console.error(`Failed to fetch ${wallet.name}`, e);
               toast.error(`Wallet Sync Error (${wallet.name})`, { description: "Failed to fetch on-chain data" });

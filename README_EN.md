@@ -70,10 +70,13 @@ Unified management of your CEX and on-chain cryptocurrency assets
 - ✅ **Ink**
 - ✅ **Plume**
 - ✅ **HyperEVM**
+- ✅ **Solona**
+- ✅ **Hyperliquid**
 
 ## 🛠️ Supported DeFi Protocols
 
 - ✅ **EigenLayer** - Staking assets
+- ✅ **HyperCore** - Staking assets
 - ✅ **Aerodrome** - Liquidity pools
 - ✅ **Aave** - Lending assets
 - ✅ **Stargate** - Cross-chain assets

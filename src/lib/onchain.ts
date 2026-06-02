@@ -165,7 +165,9 @@ const COMMON_TOKENS: Record<number, Array<{ symbol: string, address: string, dec
   ],
   [hyperEvm.id]: [
     // Native HYPE is handled by native balance check
-    // Add bridged assets if addresses are confirmed
+    // HyperEVM mainnet: common ERC20 assets
+    { symbol: 'USDC', address: '0xb88339CB7199b77E23DB6E890353E22632Ba630f', decimals: 6 },
+    { symbol: 'PURR', address: '0x9b498C3c8A0b8CD8BA1D9851d40D186F1872b44E', decimals: 18 },
   ]
 };
 
@@ -190,6 +192,7 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
       const nativeAmount = parseFloat(formatUnits(balance, chain.nativeCurrency.decimals));
       
       if (nativeAmount > 0) {
+          const isHyperEvm = chain.id === hyperEvm.id;
           assets.push({
               symbol: chain.nativeCurrency.symbol,
               amount: nativeAmount,
@@ -198,8 +201,11 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
               source: `Wallet (${chain.name})`,
               type: 'wallet',
               chainId: chain.id,
-              chainName: DEFILLAMA_CHAIN_MAP[chain.id],
-              contractAddress: '0x0000000000000000000000000000000000000000' // Special address for native
+              // DeFiLlama supports coingecko:<id> for native/coin pricing; HYPE uses coingecko:hyperliquid.
+              chainName: isHyperEvm ? 'coingecko' : DEFILLAMA_CHAIN_MAP[chain.id],
+              contractAddress: isHyperEvm
+                ? 'hyperliquid'
+                : '0x0000000000000000000000000000000000000000', // Special address for EVM-native
           });
       }
 
