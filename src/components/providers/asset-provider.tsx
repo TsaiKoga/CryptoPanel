@@ -1,9 +1,10 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { ExchangeConfig, WalletConfig, AppSettings } from '@/types';
-import { storage } from '@/lib/storage';
+import { storage, assetCache } from '@/lib/storage';
 import { randomUUID } from '@/lib/uuid';
+import { applyRpcSettings, getRpcSettingsFingerprint } from '@/lib/apply-rpc-settings';
 
 interface StoreData {
   exchanges: ExchangeConfig[];
@@ -36,6 +37,7 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
     settings: DEFAULT_SETTINGS,
   });
   const [isLoaded, setIsLoaded] = useState(false);
+  const rpcFingerprintRef = useRef<string | null>(null);
 
   // Load from storage on mount
   useEffect(() => {
@@ -53,6 +55,21 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
       setIsLoaded(true);
     });
   }, []);
+
+  // Apply RPC overrides whenever settings change; clear asset cache when RPC changes
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    applyRpcSettings(data.settings);
+
+    const fingerprint = getRpcSettingsFingerprint(data.settings);
+    if (rpcFingerprintRef.current !== null && rpcFingerprintRef.current !== fingerprint) {
+      assetCache.clear().catch((e) => {
+        console.error('Failed to clear asset cache after RPC change', e);
+      });
+    }
+    rpcFingerprintRef.current = fingerprint;
+  }, [data.settings, isLoaded]);
 
   // Save to storage on change
   useEffect(() => {

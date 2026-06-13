@@ -1,5 +1,6 @@
 // API client that works in both web and Chrome extension environments
 import { Asset, ExchangeConfig } from '@/types';
+import { MarketRates } from '@/lib/rates';
 import { isChromeExtension } from './storage';
 
 // Send message to background script
@@ -44,6 +45,14 @@ async function sendMessage<T>(message: any): Promise<T> {
       }
       return res.json();
     }
+    if (message.action === 'fetchMarketRates') {
+      const res = await fetch('/api/rates');
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to fetch market rates');
+      }
+      return res.json();
+    }
     throw new Error('Unknown action');
   }
 }
@@ -60,5 +69,9 @@ export async function fetchPrices(assets: Asset[]): Promise<{ prices: Record<str
     action: 'fetchPrices',
     assets,
   });
+}
+
+export async function fetchMarketRates(): Promise<MarketRates> {
+  return sendMessage<MarketRates>({ action: 'fetchMarketRates' });
 }
 

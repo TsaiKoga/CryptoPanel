@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import nodeFetch from 'node-fetch';
 import { Asset } from '@/types';
+import {
+  applyOkxPrices,
+  assetsFromOkxSavingRows,
+  assetsFromOkxStakingActiveOrders,
+  fetchOKXSpotPrices,
+  collectOkxPriceSymbols,
+  finalizeOkxAssets,
+  mergeOkxSavingBalanceRows,
+  OKX_SOURCE_FUNDING,
+  OKX_SOURCE_TRADING,
+  parseOkxFundingAmount,
+  parseOkxTradingAmount,
+} from '@/lib/okx';
 import crypto from 'crypto';
 
 function createProxyAgent(): HttpsProxyAgent<string> | undefined {
@@ -385,14 +398,14 @@ async function fetchOKXFundingAssets(
 
   if (Array.isArray(fundingBalances)) {
     for (const balance of fundingBalances) {
-      const amount = parseFloat(balance.bal || balance.availBal || '0');
+      const amount = parseOkxFundingAmount(balance);
       if (amount > 0) {
         assets.push({
-          symbol: balance.ccy || 'UNKNOWN',
+          symbol: String(balance.ccy ?? 'UNKNOWN').toUpperCase(),
           amount,
           price: 0,
           valueUsd: 0,
-          source: 'OKX - 资金账号',
+          source: OKX_SOURCE_FUNDING,
           type: 'cex',
         });
       }
@@ -425,14 +438,14 @@ async function fetchOKXTradingAssets(
     const accountData = tradingBalance[0];
     if (accountData.details && Array.isArray(accountData.details)) {
       for (const detail of accountData.details) {
-        const amount = parseFloat(detail.eq || detail.availEq || detail.cashBal || '0');
+        const amount = parseOkxTradingAmount(detail);
         if (amount > 0) {
           assets.push({
-            symbol: detail.ccy || 'UNKNOWN',
+            symbol: String(detail.ccy ?? 'UNKNOWN').toUpperCase(),
             amount,
             price: 0,
             valueUsd: 0,
-            source: 'OKX - 交易账号',
+            source: OKX_SOURCE_TRADING,
             type: 'cex',
           });
         }
@@ -441,6 +454,67 @@ async function fetchOKXTradingAssets(
   }
 
   return assets;
+}
+
+async function fetchOKXSimpleEarnAssets(
+  apiKey: string,
+  secret: string,
+  passphrase: string,
+  proxyAgent?: HttpsProxyAgent<string>
+): Promise<Asset[]> {
+  const fetchRows = async (endpoint: string): Promise<unknown[]> => {
+    try {
+      const rows = await okxSignedRequest(
+        endpoint,
+        'GET',
+        apiKey,
+        secret,
+        passphrase,
+        '',
+        proxyAgent
+      );
+      return Array.isArray(rows) ? rows : [];
+    } catch (e: unknown) {
+      console.warn(
+        `[OKX] Failed to fetch ${endpoint}:`,
+        e instanceof Error ? e.message : e
+      );
+      return [];
+    }
+  };
+
+  const [financeRows, legacyRows] = await Promise.all([
+    fetchRows('/api/v5/finance/savings/balance'),
+    fetchRows('/api/v5/asset/saving-balance'),
+  ]);
+
+  return assetsFromOkxSavingRows(mergeOkxSavingBalanceRows(financeRows, legacyRows));
+}
+
+async function fetchOKXStakingDefiAssets(
+  apiKey: string,
+  secret: string,
+  passphrase: string,
+  proxyAgent?: HttpsProxyAgent<string>
+): Promise<Asset[]> {
+  try {
+    const orders = await okxSignedRequest(
+      '/api/v5/finance/staking-defi/orders-active',
+      'GET',
+      apiKey,
+      secret,
+      passphrase,
+      '',
+      proxyAgent
+    );
+    return assetsFromOkxStakingActiveOrders(Array.isArray(orders) ? orders : []);
+  } catch (e: unknown) {
+    console.warn(
+      '[OKX] Failed to fetch on-chain earn orders:',
+      e instanceof Error ? e.message : e
+    );
+    return [];
+  }
 }
 
 async function fetchBinanceSpotBalance(
@@ -536,49 +610,6 @@ async function fetchBinancePrices(
   return prices;
 }
 
-async function fetchOKXPrices(
-  symbols: string[],
-  proxyAgent?: HttpsProxyAgent<string>
-): Promise<Record<string, number>> {
-  const prices: Record<string, number> = {
-    USDT: 1,
-    USDC: 1,
-    DAI: 1,
-    FDUSD: 1,
-    BUSD: 1,
-  };
-
-  const symbolsParam = symbols
-    .filter((s) => !prices[s])
-    .map((s) => `${s}-USDT`)
-    .join(',');
-
-  if (!symbolsParam) return prices;
-
-  const fetchOptions: { agent?: HttpsProxyAgent<string> } = {};
-  if (proxyAgent) fetchOptions.agent = proxyAgent;
-
-  const response = await nodeFetch(
-    `https://www.okx.com/api/v5/market/tickers?instId=${symbolsParam}`,
-    fetchOptions
-  );
-
-  if (response.ok) {
-    const data = (await response.json()) as {
-      code: string;
-      data?: Array<{ instId: string; last: string }>;
-    };
-    if (data.code === '0' && Array.isArray(data.data)) {
-      for (const ticker of data.data) {
-        const baseSymbol = ticker.instId.split('-')[0];
-        prices[baseSymbol] = parseFloat(ticker.last || '0');
-      }
-    }
-  }
-
-  return prices;
-}
-
 export async function POST(request: Request) {
   try {
     const { type, apiKey, secret, password } = await request.json();
@@ -632,23 +663,23 @@ export async function POST(request: Request) {
       const passphrase = password.trim();
       let okxError: string | undefined;
 
-      try {
-        assets.push(
-          ...(await fetchOKXFundingAssets(apiKey, secret, passphrase, proxyAgent))
-        );
-      } catch (e: unknown) {
-        okxError = e instanceof Error ? e.message : String(e);
-        console.error('[OKX] Failed to fetch funding account:', okxError);
-      }
+      const [fundingAssets, tradingAssets, simpleEarnAssets, stakingDefiAssets] =
+        await Promise.all([
+          fetchOKXFundingAssets(apiKey, secret, passphrase, proxyAgent).catch((e: unknown) => {
+            okxError = e instanceof Error ? e.message : String(e);
+            console.error('[OKX] Failed to fetch funding account:', okxError);
+            return [] as Asset[];
+          }),
+          fetchOKXTradingAssets(apiKey, secret, passphrase, proxyAgent).catch((e: unknown) => {
+            okxError = e instanceof Error ? e.message : String(e);
+            console.error('[OKX] Failed to fetch trading account:', okxError);
+            return [] as Asset[];
+          }),
+          fetchOKXSimpleEarnAssets(apiKey, secret, passphrase, proxyAgent),
+          fetchOKXStakingDefiAssets(apiKey, secret, passphrase, proxyAgent),
+        ]);
 
-      try {
-        assets.push(
-          ...(await fetchOKXTradingAssets(apiKey, secret, passphrase, proxyAgent))
-        );
-      } catch (e: unknown) {
-        okxError = e instanceof Error ? e.message : String(e);
-        console.error('[OKX] Failed to fetch trading account:', okxError);
-      }
+      assets.push(...fundingAssets, ...tradingAssets, ...simpleEarnAssets, ...stakingDefiAssets);
 
       if (assets.length === 0) {
         throw new Error(
@@ -658,19 +689,20 @@ export async function POST(request: Request) {
         );
       }
 
-      const symbolsToCheck: string[] = [];
-      assets.forEach((asset) => {
-        if (asset.amount > 0 && !symbolsToCheck.includes(asset.symbol)) {
-          symbolsToCheck.push(asset.symbol);
-        }
-      });
+      const finalized = finalizeOkxAssets(assets);
+      assets.length = 0;
+      assets.push(...finalized);
 
-      const prices = await fetchOKXPrices(symbolsToCheck, proxyAgent);
-      assets.forEach((asset) => {
-        const price = prices[asset.symbol] || 0;
-        asset.price = price;
-        asset.valueUsd = asset.amount * price;
-      });
+      const symbolsToCheck = collectOkxPriceSymbols(assets);
+
+      const fetchOptions: { agent?: HttpsProxyAgent<string> } = {};
+      if (proxyAgent) fetchOptions.agent = proxyAgent;
+
+      const prices = await fetchOKXSpotPrices(
+        symbolsToCheck,
+        (url, init) => nodeFetch(url, { ...fetchOptions, ...init }) as unknown as Promise<Response>
+      );
+      applyOkxPrices(assets, prices);
     }
 
     assets.sort((a, b) => b.valueUsd - a.valueUsd);

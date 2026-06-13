@@ -44,4 +44,8 @@ export interface AppSettings {
   smallAssetsThreshold: number; // e.g. 1 USD
   currency: 'USD';
   language: Language; // 'zh' for Chinese, 'en' for English
+  /** chainId (string) -> custom RPC URL; empty values are ignored */
+  customRpcUrls?: Record<string, string>;
+  /** Custom Solana mainnet RPC URL */
+  customSolanaRpcUrl?: string;
 }

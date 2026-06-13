@@ -38,7 +38,7 @@ export function AssetTabs({
   allAccounts.forEach(acc => {
       groupedAssets[acc.name] = assets.filter(a => {
           if (acc.type === 'cex') {
-              return a.source === acc.name;
+              return a.source === acc.name || a.source.startsWith(`${acc.name} ·`);
           } else {
               return a.source === acc.name || a.source.startsWith(`${acc.name} (`);
           }

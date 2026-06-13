@@ -15,19 +15,33 @@ const DEFAULT_SOLANA_RPC_URLS = [
 
 const MINT_QUERY_CONCURRENCY = 12;
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 
-function getSolanaRpcUrls(): string[] {
-  const custom = process.env.SOLANA_RPC_URL?.trim();
-  if (custom) return [custom, ...DEFAULT_SOLANA_RPC_URLS];
+let customSolanaRpcUrl: string | undefined;
+
+export function setCustomSolanaRpcUrl(url: string | undefined): void {
+  customSolanaRpcUrl = url?.trim() || undefined;
+}
+
+export function getDefaultSolanaRpcUrl(): string {
+  return DEFAULT_SOLANA_RPC_URLS[0];
+}
+
+function resolveSolanaRpcUrls(rpcUrlOverride?: string): string[] {
+  const custom = rpcUrlOverride?.trim() || customSolanaRpcUrl || process.env.SOLANA_RPC_URL?.trim();
+  // User-configured RPC: use exclusively (no public fallback)
+  if (custom) return [custom];
   return [...DEFAULT_SOLANA_RPC_URLS];
 }
 
 async function withSolanaConnection<T>(
   fn: (connection: Connection) => Promise<T>,
-  commitment: Parameters<typeof Connection>[1] = 'confirmed'
+  commitment: Parameters<typeof Connection>[1] = 'confirmed',
+  rpcUrlOverride?: string
 ): Promise<T> {
   let lastErr: unknown;
-  for (const url of getSolanaRpcUrls()) {
+  for (const url of resolveSolanaRpcUrls(rpcUrlOverride)) {
     try {
       const connection = new Connection(url, { commitment, disableRetryOnRateLimit: true });
       return await fn(connection);
@@ -111,6 +125,66 @@ async function fetchTokensByMintList(
   return holdings;
 }
 
+function isProgramScanBlockedError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes('403') ||
+    msg.includes('blocked') ||
+    msg.includes('-32600') ||
+    msg.includes('Invalid param') ||
+    msg.includes('not allowed')
+  );
+}
+
+/** 自定义 RPC 等通常支持 programId 扫描，可发现钱包内任意 SPL 余额 */
+async function fetchTokensByProgramScan(
+  connection: Connection,
+  owner: PublicKey
+): Promise<Array<{ mint: string; amount: number }> | null> {
+  const byMint = new Map<string, number>();
+
+  try {
+    for (const programId of [TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID]) {
+      const resp = await connection.getParsedTokenAccountsByOwner(owner, {
+        programId: new PublicKey(programId),
+      });
+
+      for (const { account } of resp.value) {
+        const parsed = (account.data as { parsed?: { info?: Record<string, unknown> } })?.parsed;
+        const info = parsed?.info;
+        const mint = typeof info?.mint === 'string' ? info.mint : '';
+        if (!mint || mint === WSOL_MINT) continue;
+
+        const amount = parseTokenUiAmount(info?.tokenAmount as Record<string, unknown> | undefined);
+        if (amount <= 0) continue;
+
+        byMint.set(mint, (byMint.get(mint) ?? 0) + amount);
+      }
+    }
+
+    return Array.from(byMint.entries()).map(([mint, amount]) => ({ mint, amount }));
+  } catch (e) {
+    if (isProgramScanBlockedError(e)) {
+      console.log('[Solana] programId scan not supported on this RPC, using mint list');
+      return null;
+    }
+    throw e;
+  }
+}
+
+async function fetchWalletTokenHoldings(
+  connection: Connection,
+  owner: PublicKey,
+  mintsToQuery: string[]
+): Promise<Array<{ mint: string; amount: number }>> {
+  const scanned = await fetchTokensByProgramScan(connection, owner);
+  if (scanned !== null) {
+    console.log(`[Solana] programId scan found ${scanned.length} token balances`);
+    return scanned;
+  }
+  return fetchTokensByMintList(connection, owner, mintsToQuery);
+}
+
 function isLikelySolanaAddress(addr: string): boolean {
   return addr.length >= 32 && addr.length <= 44 && !addr.startsWith('0x');
 }
@@ -128,7 +202,8 @@ export function validateSolanaAddress(addr: string): boolean {
 
 export async function fetchSolanaAssetsCore(
   address: string,
-  walletName?: string
+  walletName?: string,
+  rpcUrlOverride?: string
 ): Promise<Asset[]> {
   const normalizedAddress = address.trim();
   if (!isLikelySolanaAddress(normalizedAddress)) return [];
@@ -144,7 +219,11 @@ export async function fetchSolanaAssetsCore(
   const sourceLabel = walletName ? `${walletName} (Solana)` : 'Wallet (Solana)';
 
   try {
-    const lamports = await withSolanaConnection((connection) => connection.getBalance(pubkey));
+    const lamports = await withSolanaConnection(
+      (connection) => connection.getBalance(pubkey),
+      'confirmed',
+      rpcUrlOverride
+    );
     const sol = lamports / LAMPORTS_PER_SOL;
     if (sol > 0) {
       assets.push({
@@ -171,8 +250,10 @@ export async function fetchSolanaAssetsCore(
     const mintsToQuery = getMintsToQuery(tokenMap, xStockMints);
     console.log(`[Solana] Querying ${mintsToQuery.length} mints (mint-filter, no programId scan)`);
 
-    const holdings = await withSolanaConnection((connection) =>
-      fetchTokensByMintList(connection, pubkey, mintsToQuery)
+    const holdings = await withSolanaConnection(
+      (connection) => fetchWalletTokenHoldings(connection, pubkey, mintsToQuery),
+      'confirmed',
+      rpcUrlOverride
     );
 
     console.log(`[Solana] Found ${holdings.length} token balances for ${normalizedAddress}`);

@@ -24,8 +24,8 @@ export function aggregateAssetsBySymbol(
       continue;
     }
 
-    existing.asset.amount += a.amount;
-    existing.asset.valueUsd += a.valueUsd;
+    existing.asset.amount += Number(a.amount) || 0;
+    existing.asset.valueUsd += Number(a.valueUsd) || 0;
     existing.sources.add(a.source);
     if (a.loadFailed) existing.asset.loadFailed = true;
   }

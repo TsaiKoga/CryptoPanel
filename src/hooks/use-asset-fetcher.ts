@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAssetStore } from '@/components/providers/asset-provider';
 import { Asset } from '@/types';
 import { fetchOnChainAssets } from '@/lib/onchain';
@@ -13,6 +13,9 @@ import { toast } from 'sonner';
 import { fetchSolanaAssets } from '@/lib/solana';
 import { useI18n } from './use-i18n';
 import { fetchHyperliquidAssets } from '@/lib/hyperliquid';
+import { formatOkxDisplaySource } from '@/lib/okx';
+import { assetBaseSymbol, shouldDisplayAsset } from '@/lib/asset-display';
+import { applyRpcSettings, getRpcSettingsFingerprint } from '@/lib/apply-rpc-settings';
 
 function resolveWalletType(wallet: { type?: 'evm' | 'sol'; address: string }): 'evm' | 'sol' {
   if (wallet.type) return wallet.type;
@@ -27,9 +30,13 @@ export function useAssetFetcher() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const rpcFingerprintRef = useRef<string | null>(null);
 
   const fetchAssets = useCallback(async (forceRefresh = false) => {
     if (!isLoaded) return;
+
+    // Ensure module-level RPC overrides are applied before any chain requests
+    applyRpcSettings(settings);
     
     // 如果不是强制刷新，先检查缓存
     if (!forceRefresh && isInitialLoad) {
@@ -37,9 +44,9 @@ export function useAssetFetcher() {
       if (cachedAssets && cachedAssets.length > 0) {
         console.log('[AssetFetcher] Using cached assets:', cachedAssets.length);
         // 应用设置过滤
-        const filteredAssets = settings.hideSmallAssets 
-          ? cachedAssets.filter(a => a.loadFailed || a.valueUsd >= settings.smallAssetsThreshold)
-          : cachedAssets;
+        const filteredAssets = cachedAssets.filter((a) =>
+          shouldDisplayAsset(a, settings.hideSmallAssets, settings.smallAssetsThreshold)
+        );
         filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
         setAssets(filteredAssets);
         setIsInitialLoad(false);
@@ -66,9 +73,9 @@ export function useAssetFetcher() {
             if (data?.error) throw new Error(data.error);
             
             if (data?.assets) {
-                return data.assets.map((a: Asset) => ({ 
-                    ...a, 
-                    source: `${exchange.name}` 
+                return data.assets.map((a: Asset) => ({
+                    ...a,
+                    source: formatOkxDisplaySource(exchange.name, a.source),
                 }));
             }
             return [];
@@ -99,7 +106,11 @@ export function useAssetFetcher() {
               console.log(`[AssetFetcher] Fetching assets for wallet ${wallet.name} (${wallet.address}) type=${walletType}`);
 
               if (walletType === 'sol') {
-                const solAssets = await fetchSolanaAssets(wallet.address, wallet.name);
+                const solAssets = await fetchSolanaAssets(
+                  wallet.address,
+                  wallet.name,
+                  settings.customSolanaRpcUrl
+                );
                 return solAssets.map((a) => ({
                   ...a,
                   source: `${wallet.name} (Solana)`,
@@ -180,20 +191,22 @@ export function useAssetFetcher() {
               
               // Update assets with prices
               allAssets.forEach(asset => {
-                  if (asset.price === 0) {
-                      // 先尝试完整符号匹配
-                      if (prices[asset.symbol]) {
-                          asset.price = prices[asset.symbol];
-                          asset.valueUsd = asset.amount * asset.price;
-                      } else {
-                          // 如果完整符号不匹配，尝试提取基础符号（去掉括号部分）
-                          const baseSymbol = asset.symbol.split(' ')[0].trim();
-                          if (prices[baseSymbol]) {
-                              asset.price = prices[baseSymbol];
-                              asset.valueUsd = asset.amount * asset.price;
-                              console.log(`[AssetFetcher] Updated price for ${asset.symbol} using base symbol ${baseSymbol}: $${asset.price}`);
-                          }
-                      }
+                  if (asset.price !== 0) return;
+
+                  const base = assetBaseSymbol(asset.symbol);
+                  const price =
+                    prices[asset.symbol] ??
+                    prices[base] ??
+                    prices[base.toUpperCase()];
+
+                  if (price && price > 0) {
+                    asset.price = price;
+                    asset.valueUsd = asset.amount * price;
+                    if (base !== asset.symbol) {
+                      console.log(
+                        `[AssetFetcher] Updated price for ${asset.symbol} using base symbol ${base}: $${price}`
+                      );
+                    }
                   }
               });
           } catch (e) {
@@ -201,10 +214,9 @@ export function useAssetFetcher() {
           }
       }
       
-      // Filter small assets
-      const filteredAssets = settings.hideSmallAssets 
-        ? allAssets.filter(a => a.loadFailed || a.valueUsd >= settings.smallAssetsThreshold)
-        : allAssets;
+      const filteredAssets = allAssets.filter((a) =>
+        shouldDisplayAsset(a, settings.hideSmallAssets, settings.smallAssetsThreshold)
+      );
 
       // Debug: Check EigenLayer and Aave assets
       const eigenAssets = filteredAssets.filter(a => a.source.includes('EigenLayer'));
@@ -219,9 +231,9 @@ export function useAssetFetcher() {
       // Sort by value
       filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
       
-      // 保存到缓存
-      await assetCache.set(filteredAssets);
-      
+      // 缓存完整列表，展示层再按设置过滤
+      await assetCache.set(allAssets);
+
       setAssets(filteredAssets);
       setIsInitialLoad(false);
     } catch (e) {
@@ -250,9 +262,9 @@ export function useAssetFetcher() {
         if (cachedAssets && cachedAssets.length > 0) {
           console.log('[AssetFetcher] Using cached assets:', cachedAssets.length);
           // 应用设置过滤
-          const filteredAssets = settings.hideSmallAssets 
-            ? cachedAssets.filter(a => a.loadFailed || a.valueUsd >= settings.smallAssetsThreshold)
-            : cachedAssets;
+          const filteredAssets = cachedAssets.filter((a) =>
+            shouldDisplayAsset(a, settings.hideSmallAssets, settings.smallAssetsThreshold)
+          );
           filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
           setAssets(filteredAssets);
           setIsInitialLoad(false);
@@ -268,19 +280,32 @@ export function useAssetFetcher() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, exchanges.length, wallets.length, isInitialLoad]);
   
-  // 当设置改变时，重新过滤已缓存的资产
+  // 当设置改变时，从完整缓存重新过滤（避免对已过滤列表二次过滤导致资产丢失）
   useEffect(() => {
-    if (assets.length > 0 && !loading) {
-      const filteredAssets = settings.hideSmallAssets
-        ? assets.filter(a => a.loadFailed || a.valueUsd >= settings.smallAssetsThreshold)
-        : assets;
+    if (!isLoaded || loading) return;
+
+    assetCache.get().then((cachedAssets) => {
+      if (!cachedAssets || cachedAssets.length === 0) return;
+
+      const filteredAssets = cachedAssets.filter((a) =>
+        shouldDisplayAsset(a, settings.hideSmallAssets, settings.smallAssetsThreshold)
+      );
       filteredAssets.sort((a, b) => b.valueUsd - a.valueUsd);
-      if (filteredAssets.length !== assets.length || 
-          filteredAssets.some((a, i) => a.valueUsd !== assets[i]?.valueUsd)) {
-        setAssets(filteredAssets);
-      }
+      setAssets(filteredAssets);
+    });
+  }, [settings.hideSmallAssets, settings.smallAssetsThreshold, isLoaded, loading]);
+
+  // RPC 变更后自动重新拉取（自定义节点立即生效）
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const fingerprint = getRpcSettingsFingerprint(settings);
+    if (rpcFingerprintRef.current !== null && rpcFingerprintRef.current !== fingerprint) {
+      setIsInitialLoad(false);
+      fetchAssets(true);
     }
-  }, [settings.hideSmallAssets, settings.smallAssetsThreshold]);
+    rpcFingerprintRef.current = fingerprint;
+  }, [settings.customRpcUrls, settings.customSolanaRpcUrl, isLoaded, fetchAssets]);
 
   // 刷新函数：强制刷新并清除缓存
   const refresh = useCallback(() => {

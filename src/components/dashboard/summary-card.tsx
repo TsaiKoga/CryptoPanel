@@ -7,6 +7,8 @@ import { Asset } from '@/types';
 import { TrendingUp, Wallet, ArrowUpRight } from 'lucide-react';
 import { ratesCache, currencyPreference } from '@/lib/storage';
 import { useI18n } from '@/hooks/use-i18n';
+import { fetchMarketRates } from '@/lib/api';
+import { DEFAULT_USD_TO_CNY } from '@/lib/rates';
 
 type Currency = 'USD' | 'CNY' | 'BTC';
 
@@ -14,14 +16,15 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
   const { t } = useI18n();
   const [currency, setCurrency] = useState<Currency>('USD');
   const [btcPrice, setBtcPrice] = useState<number>(0);
-  const [usdToCny, setUsdToCny] = useState<number>(7.2); // 默认汇率，如果API失败则使用此值
+  const [usdToCny, setUsdToCny] = useState<number>(DEFAULT_USD_TO_CNY);
   const [loadingRates, setLoadingRates] = useState(false);
   const [loadingDots, setLoadingDots] = useState(0);
 
   const totalValueUsd = assets.reduce((sum, asset) => sum + asset.valueUsd, 0);
   const assetCount = assets.length;
-  const hasUnpricedAssets = assets.some((a) => a.amount > 0 && a.price === 0);
-  const hasLoadFailedAssets = assets.some((a) => a.loadFailed);
+  const hasPartialLoadWarning =
+    assets.some((a) => a.loadFailed) ||
+    assets.some((a) => a.amount > 0 && a.price === 0);
 
   // 初始化时从存储中读取上次选择的货币单位
   useEffect(() => {
@@ -36,7 +39,7 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
 
   // 获取 BTC 价格和 USD 到 CNY 的汇率（带缓存）
   useEffect(() => {
-    const fetchRates = async () => {
+    const loadRates = async () => {
       // 先从缓存读取
       const cached = await ratesCache.get();
       if (cached) {
@@ -56,44 +59,35 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
 
     const updateRates = async (): Promise<void> => {
       let fetchedBtcPrice = 0;
-      let fetchedUsdToCny = 7.2; // 默认值
+      let fetchedUsdToCny = DEFAULT_USD_TO_CNY;
 
-      // 获取 BTC 价格
       try {
-        const btcResponse = await fetch('https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD');
-        const btcData = await btcResponse.json();
-        if (btcData.USD) {
-          fetchedBtcPrice = btcData.USD;
+        const rates = await fetchMarketRates();
+        if (rates.btcPrice > 0) {
+          fetchedBtcPrice = rates.btcPrice;
           setBtcPrice(fetchedBtcPrice);
         }
-      } catch (e) {
-        console.error('Failed to fetch BTC price:', e);
-      }
-
-      // 获取 USD 到 CNY 的汇率
-      try {
-        const cnyResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-        const cnyData = await cnyResponse.json();
-        if (cnyData.rates && cnyData.rates.CNY) {
-          fetchedUsdToCny = cnyData.rates.CNY;
+        if (rates.usdToCny > 0) {
+          fetchedUsdToCny = rates.usdToCny;
           setUsdToCny(fetchedUsdToCny);
         }
       } catch (e) {
-        console.error('Failed to fetch USD/CNY rate:', e);
-        // 如果 API 失败，尝试备用 API
-        try {
-          const backupResponse = await fetch('https://api.fixer.io/latest?base=USD&symbols=CNY');
-          const backupData = await backupResponse.json();
-          if (backupData.rates && backupData.rates.CNY) {
-            fetchedUsdToCny = backupData.rates.CNY;
-            setUsdToCny(fetchedUsdToCny);
-          }
-        } catch (e2) {
-          console.error('Failed to fetch USD/CNY rate from backup API:', e2);
+        console.warn('[SummaryCard] Failed to fetch market rates:', e);
+      }
+
+      // 行情 API 全失败时，尝试从已加载的 BTC 资产取价
+      if (fetchedBtcPrice <= 0) {
+        const btcAsset = assets.find(
+          (a) =>
+            a.price > 0 &&
+            (a.symbol === 'BTC' || a.symbol.split(' ')[0].trim() === 'BTC')
+        );
+        if (btcAsset) {
+          fetchedBtcPrice = btcAsset.price;
+          setBtcPrice(fetchedBtcPrice);
         }
       }
 
-      // 保存到缓存（只有当获取到有效数据时才保存）
       if (fetchedBtcPrice > 0 && fetchedUsdToCny > 0) {
         await ratesCache.set(fetchedBtcPrice, fetchedUsdToCny);
       }
@@ -104,11 +98,11 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
       await updateRates();
     };
 
-    fetchRates();
+    loadRates();
     // 每 30 分钟更新一次汇率（与缓存过期时间一致）
     const interval = setInterval(updateRatesInBackground, 30 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [assets]);
 
   // 加载时循环显示省略号
   useEffect(() => {
@@ -229,14 +223,9 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
               <ArrowUpRight className="h-5 w-5 text-primary/70" />
             )}
           </div>
-          {!loading && !loadingRates && hasUnpricedAssets && (
+          {!loading && !loadingRates && hasPartialLoadWarning && (
             <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-              {t('dashboard.partialValueWarning')}
-            </div>
-          )}
-          {!loading && !loadingRates && hasLoadFailedAssets && (
-            <div className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-              {t('dashboard.partialAssetWarning')}
+              {t('dashboard.partialLoadWarning')}
             </div>
           )}
           <div className="flex items-center gap-2.5 pt-2 border-t border-border/50">

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Settings as SettingsIcon, AlertCircle, Languages } from 'lucide-react';
 import { useI18n } from '@/hooks/use-i18n';
 import { Language } from '@/types';
+import { RpcSettings } from '@/components/settings/rpc-settings';
 
 export function GeneralSettings() {
   const { settings, updateSettings } = useAssetStore();
@@ -93,6 +94,8 @@ export function GeneralSettings() {
             />
           </div>
         )}
+
+        <RpcSettings />
       </CardContent>
     </Card>
   );

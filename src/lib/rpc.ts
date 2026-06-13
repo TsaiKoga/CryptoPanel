@@ -1,6 +1,40 @@
 import { createPublicClient, http, fallback, PublicClient, Chain } from 'viem';
 import { base } from 'viem/chains';
 
+/** Supported EVM chains for custom RPC settings UI */
+export const RPC_CHAIN_LIST: Array<{ id: number; name: string }> = [
+  { id: 1, name: 'Ethereum' },
+  { id: 56, name: 'BNB Chain' },
+  { id: 137, name: 'Polygon' },
+  { id: 10, name: 'Optimism' },
+  { id: 42161, name: 'Arbitrum' },
+  { id: 8453, name: 'Base' },
+  { id: 324, name: 'zkSync Era' },
+  { id: 43114, name: 'Avalanche' },
+  { id: 59144, name: 'Linea' },
+  { id: 196, name: 'X Layer' },
+  { id: 1868, name: 'Soneium' },
+  { id: 80094, name: 'Berachain' },
+  { id: 57073, name: 'Ink' },
+  { id: 98866, name: 'Plume' },
+  { id: 999, name: 'HyperEVM' },
+];
+
+let customRpcUrls: Record<number, string> = {};
+
+export function setCustomRpcUrls(urls: Record<number, string>) {
+  customRpcUrls = urls;
+  clientCache.clear();
+}
+
+export function clearRpcClientCache() {
+  clientCache.clear();
+}
+
+export function getDefaultRpcUrl(chainId: number): string | undefined {
+  return CHAIN_RPC_FALLBACKS[chainId]?.[0];
+}
+
 // viem 2.x 默认 mainnet RPC 为 eth.merkle.io，浏览器/部分网络下易 Failed to fetch。
 // 为各链配置可回退的公共 RPC（优先 publicnode / llamarpc / 1rpc）。
 const CHAIN_RPC_FALLBACKS: Record<number, string[]> = {
@@ -73,14 +107,16 @@ const CHAIN_RPC_FALLBACKS: Record<number, string[]> = {
 };
 
 function getRpcUrls(chain: Chain): string[] {
-  const configured = CHAIN_RPC_FALLBACKS[chain.id];
-  if (configured?.length) return configured;
+  const custom = customRpcUrls[chain.id]?.trim();
+  // User-configured RPC: use exclusively (no public fallback)
+  if (custom) return [custom];
 
+  const configured = CHAIN_RPC_FALLBACKS[chain.id] ?? [];
   const defaults = [
     ...(chain.rpcUrls?.public?.http ?? []),
     ...(chain.rpcUrls?.default?.http ?? []),
   ];
-  return [...new Set(defaults)];
+  return [...new Set([...configured, ...defaults])];
 }
 
 const clientCache = new Map<number, PublicClient>();
@@ -90,25 +126,20 @@ export function getChainClient(chain: Chain): PublicClient {
   if (cached) return cached;
 
   const urls = getRpcUrls(chain);
-  const client = createPublicClient({
-    chain,
-    transport: fallback(
-      urls.map((url) =>
-        http(url, {
-          batch: {
-            wait: 100,
-            batchSize: 10,
-          },
-          timeout: 15_000,
-        })
-      ),
-      {
-        rank: true,
-        retryCount: 2,
-        retryDelay: 1000,
-      }
-    ),
-  });
+  const httpOpts = {
+    batch: { wait: 100, batchSize: 10 },
+    timeout: 15_000,
+  } as const;
+
+  const transport =
+    urls.length === 1
+      ? http(urls[0], httpOpts)
+      : fallback(
+          urls.map((url) => http(url, httpOpts)),
+          { rank: true, retryCount: 2, retryDelay: 1000 }
+        );
+
+  const client = createPublicClient({ chain, transport });
 
   clientCache.set(chain.id, client);
   return client;

@@ -193,6 +193,7 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
       
       if (nativeAmount > 0) {
           const isHyperEvm = chain.id === hyperEvm.id;
+          const isPlume = chain.id === plumeMainnet.id;
           assets.push({
               symbol: chain.nativeCurrency.symbol,
               amount: nativeAmount,
@@ -201,11 +202,15 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
               source: `Wallet (${chain.name})`,
               type: 'wallet',
               chainId: chain.id,
-              // DeFiLlama supports coingecko:<id> for native/coin pricing; HYPE uses coingecko:hyperliquid.
-              chainName: isHyperEvm ? 'coingecko' : DEFILLAMA_CHAIN_MAP[chain.id],
+              // DeFiLlama native plume:0x0… returns ETH price — use coingecko:plume instead
+              chainName: isHyperEvm || isPlume
+                ? 'coingecko'
+                : DEFILLAMA_CHAIN_MAP[chain.id],
               contractAddress: isHyperEvm
                 ? 'hyperliquid'
-                : '0x0000000000000000000000000000000000000000', // Special address for EVM-native
+                : isPlume
+                  ? 'plume'
+                  : '0x0000000000000000000000000000000000000000',
           });
       }
 

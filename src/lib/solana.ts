@@ -6,16 +6,17 @@ export { validateSolanaAddress } from './solana-core';
 
 export async function fetchSolanaAssets(
   address: string,
-  walletName?: string
+  walletName?: string,
+  customRpcUrl?: string
 ): Promise<Asset[]> {
   if (isChromeExtension) {
-    return fetchSolanaAssetsCore(address, walletName);
+    return fetchSolanaAssetsCore(address, walletName, customRpcUrl);
   }
 
   const res = await fetch('/api/solana/balance', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ address, walletName }),
+    body: JSON.stringify({ address, walletName, rpcUrl: customRpcUrl }),
   });
 
   if (!res.ok) {

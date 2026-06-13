@@ -1,5 +1,20 @@
 // Background service worker for Chrome extension
 import { Asset, ExchangeConfig } from './types';
+import {
+  applyOkxPrices,
+  assetsFromOkxSavingRows,
+  assetsFromOkxStakingActiveOrders,
+  fetchOKXSpotPrices,
+  collectOkxPriceSymbols,
+  finalizeOkxAssets,
+  mergeOkxSavingBalanceRows,
+  OKX_SOURCE_FUNDING,
+  OKX_SOURCE_TRADING,
+  parseOkxFundingAmount,
+  parseOkxTradingAmount,
+} from './lib/okx';
+import { fetchMarketRates } from './lib/rates';
+import { fetchPricesForAssets } from './lib/asset-prices';
 
 // Handle messages from popup/options pages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -14,6 +29,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     handleFetchPrices(request.assets)
       .then(result => sendResponse({ success: true, data: result }))
       .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === 'fetchMarketRates') {
+    fetchMarketRates()
+      .then((rates) => sendResponse({ success: true, data: rates }))
+      .catch((error) =>
+        sendResponse({
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
     return true;
   }
 });
@@ -469,14 +496,14 @@ async function fetchOKXFundingAssets(
     
     if (Array.isArray(fundingBalances)) {
       for (const balance of fundingBalances) {
-        const amount = parseFloat(balance.bal || balance.availBal || '0');
+        const amount = parseOkxFundingAmount(balance);
         if (amount > 0) {
           assets.push({
-            symbol: balance.ccy || 'UNKNOWN',
+            symbol: String(balance.ccy ?? 'UNKNOWN').toUpperCase(),
             amount,
             price: 0,
             valueUsd: 0,
-            source: 'OKX - 资金账号',
+            source: OKX_SOURCE_FUNDING,
             type: 'cex',
           });
         }
@@ -511,14 +538,14 @@ async function fetchOKXTradingAssets(
       const accountData = tradingBalance[0];
       if (accountData.details && Array.isArray(accountData.details)) {
         for (const detail of accountData.details) {
-          const amount = parseFloat(detail.eq || detail.availEq || detail.cashBal || '0');
+          const amount = parseOkxTradingAmount(detail);
           if (amount > 0) {
             assets.push({
-              symbol: detail.ccy || 'UNKNOWN',
+              symbol: String(detail.ccy ?? 'UNKNOWN').toUpperCase(),
               amount,
               price: 0,
               valueUsd: 0,
-              source: 'OKX - 交易账号',
+              source: OKX_SOURCE_TRADING,
               type: 'cex',
             });
           }
@@ -529,6 +556,62 @@ async function fetchOKXTradingAssets(
     console.warn('[OKX] Failed to fetch trading account:', e.message);
   }
   
+  return assets;
+}
+
+async function fetchOKXSimpleEarnAssets(
+  apiKey: string,
+  secret: string,
+  passphrase: string
+): Promise<Asset[]> {
+  const fetchRows = async (endpoint: string): Promise<unknown[]> => {
+    try {
+      const rows = await okxSignedRequest(
+        endpoint,
+        'GET',
+        apiKey,
+        secret,
+        passphrase,
+        ''
+      );
+      return Array.isArray(rows) ? rows : [];
+    } catch (e: any) {
+      console.warn(`[OKX] Failed to fetch ${endpoint}:`, e.message);
+      return [];
+    }
+  };
+
+  const [financeRows, legacyRows] = await Promise.all([
+    fetchRows('/api/v5/finance/savings/balance'),
+    fetchRows('/api/v5/asset/saving-balance'),
+  ]);
+
+  return assetsFromOkxSavingRows(mergeOkxSavingBalanceRows(financeRows, legacyRows));
+}
+
+async function fetchOKXStakingDefiAssets(
+  apiKey: string,
+  secret: string,
+  passphrase: string
+): Promise<Asset[]> {
+  const assets: Asset[] = [];
+
+  try {
+    const orders = await okxSignedRequest(
+      '/api/v5/finance/staking-defi/orders-active',
+      'GET',
+      apiKey,
+      secret,
+      passphrase,
+      ''
+    );
+    if (Array.isArray(orders)) {
+      assets.push(...assetsFromOkxStakingActiveOrders(orders));
+    }
+  } catch (e: any) {
+    console.warn('[OKX] Failed to fetch on-chain earn orders:', e.message);
+  }
+
   return assets;
 }
 
@@ -685,46 +768,6 @@ async function fetchBinancePrices(symbols: string[]): Promise<Record<string, num
   return prices;
 }
 
-// 获取 OKX 价格
-async function fetchOKXPrices(symbols: string[]): Promise<Record<string, number>> {
-  const prices: Record<string, number> = {
-    'USDT': 1,
-    'USDC': 1,
-    'DAI': 1,
-    'FDUSD': 1,
-    'BUSD': 1
-  };
-  
-  if (symbols.length === 0) return prices;
-  
-  try {
-    const symbolsParam = symbols
-      .filter(s => !prices[s])
-      .map(s => `${s}-USDT`)
-      .join(',');
-    
-    if (symbolsParam) {
-      const response = await fetch(
-        `https://www.okx.com/api/v5/market/tickers?instId=${symbolsParam}`
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.code === '0' && Array.isArray(data.data)) {
-          for (const ticker of data.data) {
-            const baseSymbol = ticker.instId.split('-')[0];
-            prices[baseSymbol] = parseFloat(ticker.last || '0');
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('[OKX] Failed to fetch prices:', e);
-  }
-  
-  return prices;
-}
-
 async function handleExchangeBalance(exchange: ExchangeConfig): Promise<{ assets: Asset[] }> {
   const { type, apiKey, secret, password } = exchange;
   
@@ -787,56 +830,40 @@ async function handleExchangeBalance(exchange: ExchangeConfig): Promise<{ assets
     
     console.log('[OKX] ===== Fetching OKX assets =====');
     console.log('[OKX] Passphrase provided:', password ? 'Yes' : 'No', password ? `(length: ${password.length})` : '');
-    
-    // 获取资金账号资产
-    try {
-      console.log('[OKX] Fetching funding account assets...');
-      const fundingAssets = await fetchOKXFundingAssets(
-        apiKey,
-        secret,
-        password.trim()
-      );
-      console.log(`[OKX] Found ${fundingAssets.length} funding assets`);
-      assets.push(...fundingAssets);
-    } catch (e: any) {
-      console.error('[OKX] Failed to fetch funding assets:', e.message);
-      // 不阻断，继续尝试获取交易账号资产
+
+    const passphrase = password.trim();
+    const [fundingAssets, tradingAssets, simpleEarnAssets, stakingDefiAssets] =
+      await Promise.all([
+        fetchOKXFundingAssets(apiKey, secret, passphrase),
+        fetchOKXTradingAssets(apiKey, secret, passphrase),
+        fetchOKXSimpleEarnAssets(apiKey, secret, passphrase),
+        fetchOKXStakingDefiAssets(apiKey, secret, passphrase),
+      ]);
+
+    console.log(`[OKX] Found ${fundingAssets.length} funding assets`);
+    console.log(`[OKX] Found ${tradingAssets.length} trading assets`);
+    console.log(`[OKX] Found ${simpleEarnAssets.length} simple earn assets`);
+    console.log(`[OKX] Found ${stakingDefiAssets.length} on-chain earn assets`);
+
+    assets.push(...fundingAssets, ...tradingAssets, ...simpleEarnAssets, ...stakingDefiAssets);
+
+    if (assets.length === 0) {
+      throw new Error('Unable to fetch any OKX balances. Check API key, passphrase, and permissions.');
     }
     
-    // 获取交易账号资产
-    try {
-      console.log('[OKX] Fetching trading account assets...');
-      const tradingAssets = await fetchOKXTradingAssets(
-        apiKey,
-        secret,
-        password.trim()
-      );
-      console.log(`[OKX] Found ${tradingAssets.length} trading assets`);
-      assets.push(...tradingAssets);
-    } catch (e: any) {
-      console.error('[OKX] Failed to fetch trading assets:', e.message);
-      // 如果两个都失败，抛出错误
-      if (assets.length === 0) {
-        throw e;
+    const finalized = finalizeOkxAssets(assets);
+    assets.length = 0;
+    assets.push(...finalized);
+
+    for (const symbol of collectOkxPriceSymbols(assets)) {
+      if (!symbolsToCheck.includes(symbol)) {
+        symbolsToCheck.push(symbol);
       }
     }
-    
-    // 收集所有币种用于价格查询
-    assets.forEach(asset => {
-      if (asset.amount > 0 && !symbolsToCheck.includes(asset.symbol)) {
-        symbolsToCheck.push(asset.symbol);
-      }
-    });
     
     // 获取价格
-    const prices = await fetchOKXPrices(symbolsToCheck);
-    
-    // 更新资产价格
-    assets.forEach(asset => {
-      const price = prices[asset.symbol] || 0;
-      asset.price = price;
-      asset.valueUsd = asset.amount * price;
-    });
+    const prices = await fetchOKXSpotPrices(symbolsToCheck);
+    applyOkxPrices(assets, prices);
   } else {
     throw new Error('Unsupported exchange');
   }
@@ -847,141 +874,10 @@ async function handleExchangeBalance(exchange: ExchangeConfig): Promise<{ assets
 }
 
 async function handleFetchPrices(assets: Asset[]): Promise<{ prices: Record<string, number> }> {
-  const prices: Record<string, number> = {
-    'USDT': 1,
-    'USDC': 1,
-    'DAI': 1,
-    'FDUSD': 1,
-    'BUSD': 1
-  };
-  
   if (!assets || !Array.isArray(assets) || assets.length === 0) {
-    return { prices };
+    return { prices: {} };
   }
-  
-  // 分离稳定币和其他币种
-  const stablecoins = ['USDT', 'USDC', 'DAI', 'FDUSD', 'BUSD'];
-  const coinsToFetch: Asset[] = [];
-  
-  for (const asset of assets) {
-    if (stablecoins.includes(asset.symbol) && asset.price === 0) {
-      prices[asset.symbol] = 1;
-    } else {
-      coinsToFetch.push(asset);
-    }
-  }
-  
-  // 准备 DeFiLlama 查询
-  const strategyToTokenMap: Record<string, string> = {
-    '0x0fe4f44bee93503346a3ac9ee5a26b130a5796d6': '0xf951E335afb289353dc249e82926178EaC7DEd78',
-    '0x2aebba35224c4f82922162765b46febd8dfe1e14': '0xf951E335afb289353dc249e82926178EaC7DEd78',
-  };
-  
-  const llamaIds = coinsToFetch
-    .filter(a => a.chainName && a.contractAddress && a.contractAddress !== '0x0000000000000000000000000000000000000000')
-    .map(a => {
-      const tokenAddress = strategyToTokenMap[a.contractAddress?.toLowerCase()] || a.contractAddress;
-      return `${a.chainName}:${tokenAddress}`;
-    })
-    .filter(id => id !== null);
-  
-  // 从 DeFiLlama 获取价格
-  if (llamaIds.length > 0) {
-    try {
-      const idsParam = llamaIds.join(',');
-      const response = await fetch(`https://coins.llama.fi/prices/current/${idsParam}`);
-      const data = await response.json();
-      
-      if (data.coins) {
-        for (const asset of coinsToFetch) {
-          const tokenAddress = strategyToTokenMap[asset.contractAddress?.toLowerCase()] || asset.contractAddress;
-          const id = `${asset.chainName}:${tokenAddress}`;
-          
-          if (data.coins[id]) {
-            prices[asset.symbol] = data.coins[id].price;
-          }
-        }
-      }
-    } catch (e) {
-      console.error("DeFiLlama API error", e);
-    }
-  }
-  
-  // 回退到 CryptoCompare - 处理带括号的符号（如 "ETH (灵活赚币)"）
-  const missingAssets = coinsToFetch.filter(a => {
-    // 提取基础符号（去掉括号和描述）
-    const baseSymbol = a.symbol.split(' ')[0].trim();
-    return !prices[a.symbol] && !prices[baseSymbol];
-  });
-  
-  if (missingAssets.length > 0) {
-    const symbols = Array.from(new Set(missingAssets.map(a => a.symbol)));
-    
-    const symbolMapping: Record<string, string> = {
-      'stETH (Eigen)': 'STETH',
-      'rETH (Eigen)': 'RETH',
-      'cbETH (Eigen)': 'CBETH',
-      'WETH (Eigen)': 'ETH',
-      'swETH (Eigen)': 'SWETH',
-      'WETH': 'ETH',
-      'ZK': 'ZK',
-      'XDOG': 'XDOG',
-      'cbBTC': 'BTC',
-      'USDBc': 'USDC',
-      'TOSHI': 'TOSHI',
-      'ZRO': 'ZRO',
-      'ZORA': 'ZORA',
-      'VIRTUAL': 'VIRTUAL',
-      // 添加币安赚币资产的映射
-      'ETH (灵活赚币)': 'ETH',
-      'ETH (锁定赚币)': 'ETH',
-      'ETH (活期质押)': 'ETH',
-      'BTC (灵活赚币)': 'BTC',
-      'BTC (锁定赚币)': 'BTC',
-    };
-    
-    // 对于没有映射的符号，提取基础符号（去掉括号部分）
-    const fetchSymbols = symbols.map(s => {
-      if (symbolMapping[s]) {
-        return symbolMapping[s];
-      }
-      // 提取基础符号：从 "ETH (灵活赚币)" 提取 "ETH"
-      const baseSymbol = s.split(' ')[0].trim();
-      return baseSymbol.toUpperCase();
-    });
-    
-    if (fetchSymbols.length > 0) {
-      try {
-        const fsyms = fetchSymbols.join(',');
-        const url = `https://min-api.cryptocompare.com/data/pricemulti?fsyms=${fsyms}&tsyms=USD`;
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        for (const symbol of symbols) {
-          let fetchKey: string;
-          if (symbolMapping[symbol]) {
-            fetchKey = symbolMapping[symbol];
-          } else {
-            // 提取基础符号
-            fetchKey = symbol.split(' ')[0].trim().toUpperCase();
-          }
-          
-          if (data[fetchKey] && data[fetchKey].USD) {
-            prices[symbol] = data[fetchKey].USD;
-            // 同时设置基础符号的价格，以便其他资产也能使用
-            const baseSymbol = symbol.split(' ')[0].trim();
-            if (!prices[baseSymbol]) {
-              prices[baseSymbol] = data[fetchKey].USD;
-            }
-            console.log(`[Prices] Found price for ${symbol} (${fetchKey}): $${prices[symbol]}`);
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-  }
-  
+  const prices = await fetchPricesForAssets(assets);
   return { prices };
 }
 
