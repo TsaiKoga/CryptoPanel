@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAssetFetcher } from '@/hooks/use-asset-fetcher';
 import { AssetDistribution } from '@/components/dashboard/asset-distribution';
 import { AssetTabs } from '@/components/dashboard/asset-tabs';
+import { PortfolioInsights } from '@/components/dashboard/portfolio-insights';
 import { Button } from '@/components/ui/button';
 import { Settings, RefreshCw, Sparkles, Heart } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -131,7 +132,8 @@ export default function Dashboard() {
               onToggleAggregate={() => setAggregateEnabled((v) => !v)}
             />
           </div>
-          <div className="space-y-8">
+          <div className="flex flex-col gap-6 lg:gap-8">
+            <PortfolioInsights assets={displayedAssetsForDistribution} loading={loading} />
             <AssetDistribution assets={displayedAssetsForDistribution} />
           </div>
         </div>

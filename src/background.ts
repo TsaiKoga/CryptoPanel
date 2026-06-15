@@ -15,6 +15,7 @@ import {
 } from './lib/okx';
 import { fetchMarketRates } from './lib/rates';
 import { fetchPricesForAssets } from './lib/asset-prices';
+import { callAiAnalysis } from './lib/ai-analyze';
 
 // Handle messages from popup/options pages
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -35,6 +36,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'fetchMarketRates') {
     fetchMarketRates()
       .then((rates) => sendResponse({ success: true, data: rates }))
+      .catch((error) =>
+        sendResponse({
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    return true;
+  }
+
+  if (request.action === 'analyzePortfolio') {
+    callAiAnalysis(request.snapshot, request.aiSettings, request.language)
+      .then((result) => sendResponse({ success: true, data: result }))
       .catch((error) =>
         sendResponse({
           success: false,

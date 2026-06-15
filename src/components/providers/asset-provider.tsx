@@ -1,10 +1,11 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { ExchangeConfig, WalletConfig, AppSettings } from '@/types';
+import { ExchangeConfig, WalletConfig, AppSettings, DEFAULT_AI_SETTINGS } from '@/types';
 import { storage, assetCache } from '@/lib/storage';
 import { randomUUID } from '@/lib/uuid';
 import { applyRpcSettings, getRpcSettingsFingerprint } from '@/lib/apply-rpc-settings';
+import { normalizeAiSettings } from '@/lib/ai-analyze';
 
 interface StoreData {
   exchanges: ExchangeConfig[];
@@ -46,7 +47,14 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         // Merge with default settings to ensure new fields exist
         setData({
             ...stored,
-            settings: { ...DEFAULT_SETTINGS, ...stored.settings }
+            settings: {
+              ...DEFAULT_SETTINGS,
+              ...stored.settings,
+              ai: normalizeAiSettings({
+                ...DEFAULT_AI_SETTINGS,
+                ...stored.settings?.ai,
+              }),
+            },
         });
       }
       setIsLoaded(true);
@@ -105,7 +113,16 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateSettings = (settings: Partial<AppSettings>) => {
-    setData(prev => ({ ...prev, settings: { ...prev.settings, ...settings } }));
+    setData((prev) => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        ...settings,
+        ...(settings.ai !== undefined
+          ? { ai: { ...DEFAULT_AI_SETTINGS, ...prev.settings.ai, ...settings.ai } }
+          : {}),
+      },
+    }));
   };
 
   return (

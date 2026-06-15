@@ -39,6 +39,67 @@ export interface WalletConfig {
 
 export type Language = 'zh' | 'en';
 
+export type AiProvider = 'openai' | 'deepseek' | 'custom';
+
+export type AiPrivacyMode = 'percent_only' | 'include_amounts';
+
+export interface AiSettings {
+  enabled: boolean;
+  provider: AiProvider;
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+  privacyMode: AiPrivacyMode;
+}
+
+export type PortfolioRiskFlag =
+  | 'high_single_asset_concentration'
+  | 'high_top3_concentration'
+  | 'high_cex_custody'
+  | 'low_stablecoin_buffer'
+  | 'partial_price_missing'
+  | 'load_failed';
+
+export interface PortfolioHolding {
+  symbol: string;
+  valueUsd: number;
+  pct: number;
+  venue: 'cex' | 'onchain' | 'mixed';
+}
+
+export interface PortfolioSnapshot {
+  totalUsd: number;
+  assetCount: number;
+  holdings: PortfolioHolding[];
+  concentration: {
+    top1Pct: number;
+    top3Pct: number;
+    hhi: number;
+  };
+  venueSplit: {
+    cexUsd: number;
+    onchainUsd: number;
+    cexPct: number;
+    onchainPct: number;
+  };
+  stablecoinPct: number;
+  btcEthPct: number;
+  healthScore: number;
+  flags: PortfolioRiskFlag[];
+  dataQuality: {
+    loadFailedCount: number;
+    zeroPriceCount: number;
+  };
+}
+
+export interface AiAnalysisResult {
+  healthScore: number;
+  summary: string;
+  risks: string[];
+  suggestions: string[];
+  questionsToConsider: string[];
+}
+
 export interface AppSettings {
   hideSmallAssets: boolean;
   smallAssetsThreshold: number; // e.g. 1 USD
@@ -48,4 +109,13 @@ export interface AppSettings {
   customRpcUrls?: Record<string, string>;
   /** Custom Solana mainnet RPC URL */
   customSolanaRpcUrl?: string;
+  ai?: AiSettings;
 }
+
+export const DEFAULT_AI_SETTINGS: AiSettings = {
+  enabled: false,
+  provider: 'openai',
+  apiKey: '',
+  model: 'gpt-4o-mini',
+  privacyMode: 'percent_only',
+};

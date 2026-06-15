@@ -21,7 +21,7 @@ Unified management of your CEX and on-chain cryptocurrency assets
 
 ### 🔐 Privacy & Security
 - **Fully Local Storage**: All API keys and configurations are stored only in your browser locally
-- **No Server**: No data is uploaded to any external server
+- **No Self-Hosted Server**: CryptoPanel does not run any backend; aside from AI analysis you explicitly trigger, data never passes through this project
 - **Read-Only Permissions**: It is recommended to grant API keys read-only permissions only to ensure fund safety
 
 ### 📊 Unified Asset Management
@@ -40,6 +40,13 @@ Unified management of your CEX and on-chain cryptocurrency assets
 - **Multiple Currency Units**: Supports USD, CNY, BTC display
 - **Asset Filtering**: Can hide small assets
 - **Real-Time Updates**: Supports manual refresh and automatic updates
+
+### 🧠 Portfolio Insights & AI Analysis
+- **Local Health Score**: No API key required — instant metrics for concentration, CEX/on-chain split, stablecoin ratio, and more
+- **Risk Tags**: Automatically flags high single-asset concentration, high exchange custody ratio, etc.
+- **BYOK AI Insights** (optional): Configure your own AI API key in settings for one-click portfolio structure analysis and suggestions
+- **No Intermediary Server**: AI requests go directly from the extension background to OpenAI / DeepSeek / local Ollama — never through a CryptoPanel server
+- **Privacy Mode**: By default, only allocation percentages are sent to AI — never wallet addresses, account names, or exchange API keys
 
 ## 📋 Supported Exchanges
 
@@ -154,6 +161,38 @@ In the "General Settings" tab, you can:
 - Switch theme (Light/Dark/Follow System)
 - Hide small assets
 - Set small asset threshold
+- Configure custom RPC endpoints
+
+#### 5. Portfolio Insights & AI Analysis
+
+**Local insights (no setup required)**
+
+1. Open the main panel — the **Portfolio Insights** card appears on the right
+2. View health score, CEX/stablecoin/top-holding ratios, and risk tags
+3. All metrics are computed locally with zero API cost
+
+**AI analysis (optional — bring your own API key)**
+
+1. Go to Settings → **AI Analysis** tab
+2. Enable AI analysis and choose a provider (OpenAI, DeepSeek, or local Ollama)
+3. Enter your API key (optional for local Ollama)
+4. On first enable, the extension requests permission to reach the AI provider domain (`optional_host_permissions`)
+5. Return to the dashboard and click **AI Analyze** for structured insights
+
+**Supported AI providers**
+
+| Provider | Notes |
+|----------|-------|
+| OpenAI | Default model: `gpt-4o-mini` |
+| DeepSeek | Default model: `deepseek-chat` |
+| Custom / Local | e.g. Ollama: `http://127.0.0.1:11434/v1/chat/completions` |
+
+**Platform differences**
+
+- **Chrome extension**: Recommended — direct access to all cloud AI providers
+- **Web version** (`npm run dev`): Cloud AI may be blocked by browser CORS; use the extension or local Ollama
+
+> ⚠️ AI output is for reference only and is not financial advice. See the disclaimer below.
 
 ## 🛠️ Tech Stack
 
@@ -203,12 +242,18 @@ CryptoPanel/
 │   ├── options.tsx         # Options page entry
 │   ├── components/         # React components
 │   │   ├── dashboard/      # Dashboard components
+│   │   │   ├── portfolio-insights.tsx  # Portfolio insights & AI analysis
+│   │   │   └── ...
 │   │   ├── settings/       # Settings components
+│   │   │   ├── ai-settings.tsx         # AI analysis configuration
+│   │   │   └── ...
 │   │   ├── donation/       # Donation components
 │   │   └── ui/             # UI base components
 │   ├── hooks/              # React Hooks
 │   ├── lib/                # Utility libraries
-│   │   ├── api.ts          # API calls
+│   │   ├── api.ts          # API calls (incl. AI analysis routing)
+│   │   ├── portfolio-snapshot.ts  # Portfolio snapshot & health score
+│   │   ├── ai-analyze.ts   # AI prompts & direct provider calls
 │   │   ├── onchain.ts      # On-chain asset fetching
 │   │   ├── protocols/     # DeFi protocol integration
 │   │   ├── storage.ts      # Storage management
@@ -272,13 +317,20 @@ For detailed development guide, please see [docs/DEVELOPMENT.md](./docs/DEVELOPM
 ### Data Storage
 - All data (API keys, wallet addresses, settings) is stored only in your browser locally
 - Uses Chrome's `chrome.storage.local` API
-- No data is uploaded to any external server
+- CryptoPanel hosts no server; when AI analysis is enabled, portfolio summaries are sent directly from the extension to your chosen AI provider
 
 ### API Calls
 The extension sends requests to the following services:
 - **Exchange APIs**: Get account balance (only when you configure API keys)
 - **Price APIs**: Get token prices (public APIs, no authentication required)
 - **RPC Nodes**: Query on-chain asset balances (public nodes)
+- **AI Providers** (optional): Only when you enable AI analysis and click **AI Analyze** — the background script calls your configured provider (OpenAI, DeepSeek, Ollama, etc.) directly; by default only structured allocation summaries are sent, never wallet addresses or API keys
+
+### AI Analysis Privacy
+- AI API keys are stored locally in the browser, same as CEX API keys
+- CryptoPanel does **not** provide or host any AI proxy server
+- No data is sent to AI providers unless you enable AI and trigger an analysis
+- Results are cached locally (24 hours) to avoid duplicate requests
 
 ### Security Recommendations
 - ✅ Grant API keys **read-only permissions** only
@@ -313,6 +365,7 @@ This project is licensed under the [Apache 2.0 License](./LICENSE).
 ## ⚠️ Disclaimer
 
 - This extension does not constitute investment advice
+- **AI analysis** is generated by third-party models and may contain errors — always use your own judgment
 - Cryptocurrency investment involves high risks, please invest carefully
 - We are not responsible for any investment losses
 - Please make important decisions based on exchange and on-chain data

@@ -1,6 +1,7 @@
 // API client that works in both web and Chrome extension environments
-import { Asset, ExchangeConfig } from '@/types';
+import { Asset, ExchangeConfig, AiAnalysisResult, AiSettings, Language, PortfolioSnapshot } from '@/types';
 import { MarketRates } from '@/lib/rates';
+import { callAiAnalysis, getAiEndpoint, isLocalAiEndpoint } from '@/lib/ai-analyze';
 import { isChromeExtension } from './storage';
 
 // Send message to background script
@@ -53,6 +54,19 @@ async function sendMessage<T>(message: any): Promise<T> {
       }
       return res.json();
     }
+    if (message.action === 'analyzePortfolio') {
+      const { url } = getAiEndpoint(message.aiSettings as AiSettings);
+      if (!isLocalAiEndpoint(url)) {
+        throw new Error(
+          'Cloud AI providers require the Chrome extension. Use a local endpoint (e.g. Ollama) on web, or install the extension.'
+        );
+      }
+      return callAiAnalysis(
+        message.snapshot as PortfolioSnapshot,
+        message.aiSettings as AiSettings,
+        message.language as Language
+      );
+    }
     throw new Error('Unknown action');
   }
 }
@@ -73,5 +87,18 @@ export async function fetchPrices(assets: Asset[]): Promise<{ prices: Record<str
 
 export async function fetchMarketRates(): Promise<MarketRates> {
   return sendMessage<MarketRates>({ action: 'fetchMarketRates' });
+}
+
+export async function analyzePortfolio(
+  snapshot: PortfolioSnapshot,
+  aiSettings: AiSettings,
+  language: Language
+): Promise<AiAnalysisResult> {
+  return sendMessage<AiAnalysisResult>({
+    action: 'analyzePortfolio',
+    snapshot,
+    aiSettings,
+    language,
+  });
 }
 

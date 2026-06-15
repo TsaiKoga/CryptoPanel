@@ -1,5 +1,5 @@
 // Storage utility that works in both web and Chrome extension environments
-import { ExchangeConfig, WalletConfig, AppSettings, Asset } from '@/types';
+import { ExchangeConfig, WalletConfig, AppSettings, Asset, AiAnalysisResult } from '@/types';
 
 interface StoreData {
   exchanges: ExchangeConfig[];
@@ -22,6 +22,7 @@ const STORAGE_KEY = 'crypto-panel-data-v1';
 const CACHE_KEY = 'crypto-panel-assets-cache-v1';
 const RATES_CACHE_KEY = 'crypto-panel-rates-cache-v1';
 const CURRENCY_KEY = 'crypto-panel-currency-v1';
+const ANALYSIS_CACHE_KEY = 'crypto-panel-analysis-cache-v1';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours (but we'll only use cache until manual refresh)
 const RATES_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes for rates (BTC price and CNY rate)
 
@@ -303,6 +304,54 @@ export const currencyPreference = {
       localStorage.setItem(CURRENCY_KEY, currency);
       return Promise.resolve();
     }
+  },
+};
+
+interface CachedAnalysis {
+  fingerprint: string;
+  result: AiAnalysisResult;
+  timestamp: number;
+}
+
+const ANALYSIS_CACHE_DURATION = 24 * 60 * 60 * 1000;
+
+export const analysisCache = {
+  async get(fingerprint: string): Promise<AiAnalysisResult | null> {
+    const read = (raw: string | undefined): AiAnalysisResult | null => {
+      if (!raw) return null;
+      try {
+        const data: CachedAnalysis = JSON.parse(raw);
+        if (data.fingerprint !== fingerprint) return null;
+        if (Date.now() - data.timestamp > ANALYSIS_CACHE_DURATION) return null;
+        return data.result;
+      } catch {
+        return null;
+      }
+    };
+
+    if (isChromeExtension) {
+      return new Promise((resolve) => {
+        chrome.storage.local.get(ANALYSIS_CACHE_KEY, (result) => {
+          resolve(read(result[ANALYSIS_CACHE_KEY]));
+        });
+      });
+    }
+    return read(localStorage.getItem(ANALYSIS_CACHE_KEY) ?? undefined);
+  },
+
+  async set(fingerprint: string, result: AiAnalysisResult): Promise<void> {
+    const payload: CachedAnalysis = { fingerprint, result, timestamp: Date.now() };
+    const serialized = JSON.stringify(payload);
+
+    if (isChromeExtension) {
+      return new Promise((resolve, reject) => {
+        chrome.storage.local.set({ [ANALYSIS_CACHE_KEY]: serialized }, () => {
+          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+          else resolve();
+        });
+      });
+    }
+    localStorage.setItem(ANALYSIS_CACHE_KEY, serialized);
   },
 };
 

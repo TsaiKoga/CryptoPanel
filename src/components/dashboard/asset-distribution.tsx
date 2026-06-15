@@ -39,9 +39,9 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
 
   if (totalAll === 0) {
       return (
-        <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm shadow-lg">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
-          <CardHeader className="relative pt-6 pb-4 px-6">
+        <Card className="relative border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm shadow-lg">
+          <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none overflow-hidden" />
+          <CardHeader className="relative px-6 pb-4 pt-0">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10">
                 <PieChartIcon className="h-4 w-4 text-primary" />
@@ -49,7 +49,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
               <CardTitle>{t('dashboard.assetDistribution')}</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="relative h-[300px] flex items-center justify-center text-muted-foreground px-6 pb-6">
+          <CardContent className="relative px-6 pt-0 pb-6 h-[300px] flex items-center justify-center text-muted-foreground">
             <div className="text-center space-y-2">
               <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
                 <PieChartIcon className="h-8 w-8 opacity-30" />
@@ -113,9 +113,9 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
   };
 
   return (
-    <Card className="relative overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
-      <CardHeader className="relative pt-6 pb-4 px-6">
+    <Card className="relative border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300">
+      <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none overflow-hidden" />
+      <CardHeader className="relative px-6 pb-4 pt-0">
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-lg bg-primary/10">
             <PieChartIcon className="h-4 w-4 text-primary" />
@@ -123,7 +123,7 @@ export function AssetDistribution({ assets }: { assets: Asset[] }) {
           <CardTitle>{t('dashboard.assetDistribution')}</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="relative px-6 pb-6">
+      <CardContent className="relative px-6 pt-0 pb-6">
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>

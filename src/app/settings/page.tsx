@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { isChromeExtension } from '@/lib/storage';
 import { GeneralSettings } from "@/components/settings/general-settings";
+import { AiSettingsPanel } from "@/components/settings/ai-settings";
 import { DonationSection } from "@/components/donation/donation-section";
 import { useI18n } from '@/hooks/use-i18n';
 
@@ -25,7 +26,7 @@ export default function SettingsPage() {
           const result = await new Promise<{ openTab?: string }>((resolve) => {
             chrome.storage.local.get(['openTab'], resolve);
           });
-          if (result.openTab && ['cex', 'wallet', 'general', 'donation'].includes(result.openTab)) {
+          if (result.openTab && ['cex', 'wallet', 'general', 'ai', 'donation'].includes(result.openTab)) {
             tabToOpen = result.openTab;
             // 清除存储，避免下次打开时还跳转
             chrome.storage.local.remove(['openTab']);
@@ -41,9 +42,9 @@ export default function SettingsPage() {
         const tabParam = urlParams.get('tab');
         const hash = window.location.hash.replace('#', '');
         
-        if (tabParam && ['cex', 'wallet', 'general', 'donation'].includes(tabParam)) {
+        if (tabParam && ['cex', 'wallet', 'general', 'ai', 'donation'].includes(tabParam)) {
           tabToOpen = tabParam;
-        } else if (hash && ['cex', 'wallet', 'general', 'donation'].includes(hash)) {
+        } else if (hash && ['cex', 'wallet', 'general', 'ai', 'donation'].includes(hash)) {
           tabToOpen = hash;
         }
       }
@@ -84,7 +85,7 @@ export default function SettingsPage() {
         </div>
         
         <Tabs value={defaultTab} onValueChange={setDefaultTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-14 rounded-xl border-2 border-border/50 bg-muted/30 p-1.5">
+          <TabsList className="grid w-full grid-cols-5 h-14 rounded-xl border-2 border-border/50 bg-muted/30 p-1.5">
             <TabsTrigger 
               value="cex"
               className="rounded-lg font-semibold data-[state=active]:bg-background data-[state=active]:shadow-md"
@@ -104,6 +105,12 @@ export default function SettingsPage() {
               {t('settings.generalTab')}
             </TabsTrigger>
             <TabsTrigger 
+              value="ai"
+              className="rounded-lg font-semibold data-[state=active]:bg-background data-[state=active]:shadow-md"
+            >
+              {t('settings.aiTab')}
+            </TabsTrigger>
+            <TabsTrigger 
               value="donation"
               className="rounded-lg font-semibold data-[state=active]:bg-background data-[state=active]:shadow-md"
             >
@@ -118,6 +125,9 @@ export default function SettingsPage() {
           </TabsContent>
           <TabsContent value="general" className="mt-8">
             <GeneralSettings />
+          </TabsContent>
+          <TabsContent value="ai" className="mt-8">
+            <AiSettingsPanel />
           </TabsContent>
           <TabsContent value="donation" className="mt-8">
             <DonationSection />
