@@ -1,4 +1,6 @@
 // Storage utility that works in both web and Chrome extension environments
+import { FearGreedIndex } from '@/lib/fear-greed';
+import { FearGreedAlertState } from '@/lib/fear-greed-alerts';
 import { ExchangeConfig, WalletConfig, AppSettings, Asset, AiAnalysisResult } from '@/types';
 
 interface StoreData {
@@ -21,10 +23,13 @@ interface CachedRates {
 const STORAGE_KEY = 'crypto-panel-data-v1';
 const CACHE_KEY = 'crypto-panel-assets-cache-v1';
 const RATES_CACHE_KEY = 'crypto-panel-rates-cache-v1';
+const FEAR_GREED_CACHE_KEY = 'crypto-panel-fear-greed-cache-v1';
+const FEAR_GREED_ALERT_STATE_KEY = 'crypto-panel-fear-greed-alert-state-v1';
 const CURRENCY_KEY = 'crypto-panel-currency-v1';
 const ANALYSIS_CACHE_KEY = 'crypto-panel-analysis-cache-v1';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours (but we'll only use cache until manual refresh)
 const RATES_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes for rates (BTC price and CNY rate)
+const FEAR_GREED_CACHE_DURATION = 60 * 60 * 1000; // 1 hour — index updates daily
 
 // Check if running in Chrome extension
 export const isChromeExtension = typeof chrome !== 'undefined' && chrome.storage;
@@ -256,6 +261,96 @@ export const ratesCache = {
       localStorage.removeItem(RATES_CACHE_KEY);
       return Promise.resolve();
     }
+  },
+};
+
+// Fear & Greed Index cache (updates ~daily; refresh hourly)
+export const fearGreedCache = {
+  async get(): Promise<FearGreedIndex | null> {
+    const read = (raw: string | undefined): FearGreedIndex | null => {
+      if (!raw) return null;
+      try {
+        const data = JSON.parse(raw) as FearGreedIndex & { cachedAt?: number };
+        const cachedAt = data.cachedAt ?? data.updatedAt ?? 0;
+        if (Date.now() - cachedAt > FEAR_GREED_CACHE_DURATION) return null;
+        return {
+          value: data.value,
+          classification: data.classification,
+          timestamp: data.timestamp,
+          updatedAt: data.updatedAt,
+        };
+      } catch {
+        return null;
+      }
+    };
+
+    if (isChromeExtension) {
+      return new Promise((resolve) => {
+        chrome.storage.local.get(FEAR_GREED_CACHE_KEY, (result) => {
+          resolve(read(result[FEAR_GREED_CACHE_KEY]));
+        });
+      });
+    }
+    return read(localStorage.getItem(FEAR_GREED_CACHE_KEY) ?? undefined);
+  },
+
+  async set(data: FearGreedIndex): Promise<void> {
+    const payload = JSON.stringify({ ...data, cachedAt: Date.now() });
+
+    if (isChromeExtension) {
+      return new Promise((resolve, reject) => {
+        chrome.storage.local.set({ [FEAR_GREED_CACHE_KEY]: payload }, () => {
+          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+          else resolve();
+        });
+      });
+    }
+    localStorage.setItem(FEAR_GREED_CACHE_KEY, payload);
+  },
+};
+
+export const fearGreedAlertState = {
+  async get(): Promise<FearGreedAlertState | null> {
+    const read = (raw: string | undefined): FearGreedAlertState | null => {
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw) as FearGreedAlertState;
+      } catch {
+        return null;
+      }
+    };
+
+    if (isChromeExtension) {
+      return new Promise((resolve) => {
+        chrome.storage.local.get(FEAR_GREED_ALERT_STATE_KEY, (result) => {
+          resolve(read(result[FEAR_GREED_ALERT_STATE_KEY]));
+        });
+      });
+    }
+    return read(localStorage.getItem(FEAR_GREED_ALERT_STATE_KEY) ?? undefined);
+  },
+
+  async set(state: FearGreedAlertState): Promise<void> {
+    const serialized = JSON.stringify(state);
+
+    if (isChromeExtension) {
+      return new Promise((resolve, reject) => {
+        chrome.storage.local.set({ [FEAR_GREED_ALERT_STATE_KEY]: serialized }, () => {
+          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+          else resolve();
+        });
+      });
+    }
+    localStorage.setItem(FEAR_GREED_ALERT_STATE_KEY, serialized);
+  },
+
+  async clear(): Promise<void> {
+    if (isChromeExtension) {
+      return new Promise((resolve) => {
+        chrome.storage.local.remove(FEAR_GREED_ALERT_STATE_KEY, () => resolve());
+      });
+    }
+    localStorage.removeItem(FEAR_GREED_ALERT_STATE_KEY);
   },
 };
 

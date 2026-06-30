@@ -6,6 +6,7 @@ import { storage, assetCache } from '@/lib/storage';
 import { randomUUID } from '@/lib/uuid';
 import { applyRpcSettings, getRpcSettingsFingerprint } from '@/lib/apply-rpc-settings';
 import { normalizeAiSettings } from '@/lib/ai-analyze';
+import { normalizeFearGreedAlertSettings } from '@/lib/fear-greed-alerts';
 
 interface StoreData {
   exchanges: ExchangeConfig[];
@@ -50,6 +51,9 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
             settings: {
               ...DEFAULT_SETTINGS,
               ...stored.settings,
+              fearGreedAlerts: normalizeFearGreedAlertSettings(
+                stored.settings?.fearGreedAlerts
+              ),
               ai: normalizeAiSettings({
                 ...DEFAULT_AI_SETTINGS,
                 ...stored.settings?.ai,
@@ -120,6 +124,14 @@ export function AssetProvider({ children }: { children: React.ReactNode }) {
         ...settings,
         ...(settings.ai !== undefined
           ? { ai: { ...DEFAULT_AI_SETTINGS, ...prev.settings.ai, ...settings.ai } }
+          : {}),
+        ...(settings.fearGreedAlerts !== undefined
+          ? {
+              fearGreedAlerts: normalizeFearGreedAlertSettings({
+                ...prev.settings.fearGreedAlerts,
+                ...settings.fearGreedAlerts,
+              }),
+            }
           : {}),
       },
     }));

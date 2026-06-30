@@ -18,6 +18,19 @@ export const translations = {
       refresh: '刷新',
       settings: '设置',
     },
+    fearGreed: {
+      title: '恐慌贪婪指数',
+      extremeFear: '极度恐慌',
+      fear: '恐慌',
+      neutral: '中性',
+      greed: '贪婪',
+      extremeGreed: '极度贪婪',
+      unknown: '未知',
+      scaleFear: '恐慌',
+      scaleGreed: '贪婪',
+      asOf: '截至 {date}',
+      source: '数据来源',
+    },
     // Asset Table
     assetTable: {
       symbol: '币种',
@@ -54,6 +67,16 @@ export const translations = {
       resetRpc: '恢复默认',
       resetAllRpc: '全部恢复默认',
       rpcSavedHint: 'RPC 已更新，请返回首页点击刷新以重新拉取资产',
+      fearGreedAlertTitle: '恐慌指数提醒',
+      fearGreedAlertDesc: '当市场恐慌贪婪指数突破您设置的阈值时，通过系统通知提醒您（扩展后台每 2 小时检查一次）。',
+      fearGreedAlertExtensionOnly: '后台通知仅 Chrome 扩展可用；Web 版可配置但不会推送。',
+      fearGreedAlertBelow: '低于此值通知',
+      fearGreedAlertBelowPlaceholder: '例如: 8（留空表示不启用）',
+      fearGreedAlertBelowHint: '指数低于该数值时通知，通常表示市场恐慌。',
+      fearGreedAlertAbove: '高于此值通知',
+      fearGreedAlertAbovePlaceholder: '例如: 90（留空表示不启用）',
+      fearGreedAlertAboveHint: '指数高于该数值时通知，通常表示市场过热贪婪。',
+      fearGreedAlertInterval: '指数约每日更新一次；同一期数据对每种阈值最多通知一次。',
     },
     // CEX Manager
     cexManager: {
@@ -191,6 +214,19 @@ export const translations = {
       refresh: 'Refresh',
       settings: 'Settings',
     },
+    fearGreed: {
+      title: 'Fear & Greed Index',
+      extremeFear: 'Extreme Fear',
+      fear: 'Fear',
+      neutral: 'Neutral',
+      greed: 'Greed',
+      extremeGreed: 'Extreme Greed',
+      unknown: 'Unknown',
+      scaleFear: 'Fear',
+      scaleGreed: 'Greed',
+      asOf: 'As of {date}',
+      source: 'Data source',
+    },
     // Asset Table
     assetTable: {
       symbol: 'Symbol',
@@ -227,6 +263,16 @@ export const translations = {
       resetRpc: 'Reset to default',
       resetAllRpc: 'Reset all',
       rpcSavedHint: 'RPC updated. Go back and refresh the dashboard to reload assets.',
+      fearGreedAlertTitle: 'Fear & Greed Alerts',
+      fearGreedAlertDesc: 'Get a system notification when the Fear & Greed Index crosses your thresholds (background check every 2 hours).',
+      fearGreedAlertExtensionOnly: 'Background alerts work in the Chrome extension only; settings on web are saved but won\'t notify.',
+      fearGreedAlertBelow: 'Notify when below',
+      fearGreedAlertBelowPlaceholder: 'e.g. 8 (leave empty to disable)',
+      fearGreedAlertBelowHint: 'Alerts when the index falls below this value (often extreme fear).',
+      fearGreedAlertAbove: 'Notify when above',
+      fearGreedAlertAbovePlaceholder: 'e.g. 90 (leave empty to disable)',
+      fearGreedAlertAboveHint: 'Alerts when the index rises above this value (often extreme greed).',
+      fearGreedAlertInterval: 'The index updates about once per day; each threshold fires at most once per index update.',
     },
     // CEX Manager
     cexManager: {

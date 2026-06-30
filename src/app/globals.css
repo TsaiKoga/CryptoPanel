@@ -125,6 +125,7 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
     background-color: var(--background) !important;
+    color: var(--foreground) !important;
     min-height: 100vh;
   }
   
@@ -147,7 +148,8 @@
     padding-right: 2rem !important;
   }
 
-  .container .text-sm {
+  /* 避免误伤看板卡片内的小字标签 */
+  .container .text-sm:not([data-dashboard-card] *) {
     padding-top: 0.5rem !important;
     padding-bottom: 0.5rem !important;
   }
@@ -251,7 +253,11 @@
   }
 
   [data-slot="card-header"] {
-    padding: 1rem !important;
+    padding: 1.5rem 1.5rem 1rem !important;
+  }
+
+  [data-slot="card-content"] {
+    padding: 0 1.5rem 1.5rem !important;
   }
   
   [data-slot="card"]:hover {
@@ -305,6 +311,7 @@
   input[type="number"] {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     background-color: var(--input) !important;
+    color: var(--foreground) !important;
     padding-left: 1.25rem !important; /* px-5 */
     padding-right: 1.25rem !important;
     padding-top: 0.875rem !important; /* py-3.5 */
@@ -317,15 +324,22 @@
   input[type="email"]::placeholder,
   input[type="number"]::placeholder {
     padding-left: 0 !important;
+    color: var(--muted-foreground) !important;
   }
   
   /* 下拉菜单样式 - 确保文字有足够间距 */
   [data-slot="select-trigger"] {
+    color: var(--foreground) !important;
+    background-color: var(--background) !important;
     padding-left: 1.25rem !important; /* px-5 */
     padding-right: 1.25rem !important;
     padding-top: 0.875rem !important; /* py-3.5 */
     padding-bottom: 0.875rem !important;
     gap: 0.75rem !important; /* gap-3 */
+  }
+
+  [data-slot="select-value"] {
+    color: var(--foreground) !important;
   }
   
   [data-slot="select-item"] {
@@ -363,5 +377,44 @@
   
   ::-webkit-scrollbar-thumb:hover {
     background: var(--foreground);
+  }
+
+  /* 通用设置 / AI 设置面板：仅作用于 data-settings-panel，不影响其他页面 */
+  [data-settings-panel] {
+    background-color: var(--card) !important;
+    color: var(--card-foreground) !important;
+  }
+
+  [data-settings-panel] [data-settings-panel-header] {
+    padding: 2rem 2rem 1.5rem 2rem !important;
+  }
+
+  [data-settings-panel] [data-settings-panel-body] {
+    padding: 2rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.75rem !important;
+  }
+
+  [data-settings-panel] [data-settings-section] {
+    padding: 1.5rem !important;
+    background-color: color-mix(in oklch, var(--muted) 30%, var(--card)) !important;
+    color: var(--foreground) !important;
+    border-color: color-mix(in oklch, var(--border) 50%, transparent) !important;
+  }
+
+  [data-settings-panel] h2,
+  [data-settings-panel] [data-slot="label"],
+  [data-settings-panel] label {
+    color: var(--foreground) !important;
+  }
+
+  [data-settings-panel] [data-slot="select-trigger"],
+  [data-settings-panel] [data-slot="select-value"],
+  [data-settings-panel] input[data-slot="input"],
+  [data-settings-panel] input[type="number"],
+  [data-settings-panel] input[type="text"] {
+    color: var(--foreground) !important;
+    background-color: var(--input) !important;
   }
 }

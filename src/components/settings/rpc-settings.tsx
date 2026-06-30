@@ -4,6 +4,7 @@ import { useAssetStore } from '@/components/providers/asset-provider';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { SettingsSection } from '@/components/settings/settings-section';
 import { Network, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/hooks/use-i18n';
@@ -52,14 +53,18 @@ export function RpcSettings() {
     Object.values(customRpcUrls).some((url) => url?.trim());
 
   return (
-    <div className="space-y-6 p-6 rounded-xl bg-muted/30 border border-border/50">
+    <SettingsSection className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Network className="h-4 w-4 text-primary" />
-            <Label className="text-base font-semibold">{t('settings.rpcTitle')}</Label>
+            <Label className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>
+              {t('settings.rpcTitle')}
+            </Label>
           </div>
-          <p className="text-sm text-muted-foreground">{t('settings.rpcDesc')}</p>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+            {t('settings.rpcDesc')}
+          </p>
         </div>
         {hasAnyCustom && (
           <Button
@@ -76,7 +81,9 @@ export function RpcSettings() {
       </div>
 
       <div className="space-y-3">
-        <Label className="text-sm font-semibold">{t('settings.solanaRpc')}</Label>
+        <Label className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+          {t('settings.solanaRpc')}
+        </Label>
         <Input
           type="url"
           value={settings.customSolanaRpcUrl ?? ''}
@@ -92,14 +99,20 @@ export function RpcSettings() {
       </div>
 
       <div className="space-y-3">
-        <Label className="text-sm font-semibold">{t('settings.evmRpc')}</Label>
+        <Label className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+          {t('settings.evmRpc')}
+        </Label>
         <div className="space-y-3">
           {RPC_CHAIN_LIST.map((chain) => {
             const value = customRpcUrls[String(chain.id)] ?? '';
             const defaultUrl = getDefaultRpcUrl(chain.id);
             return (
               <div key={chain.id} className="flex items-center gap-3">
-                <span className="w-28 shrink-0 text-sm text-muted-foreground truncate" title={chain.name}>
+                <span
+                  className="w-28 shrink-0 text-sm truncate"
+                  style={{ color: 'var(--muted-foreground)' }}
+                  title={chain.name}
+                >
                   {chain.name}
                 </span>
                 <Input
@@ -130,6 +143,6 @@ export function RpcSettings() {
           })}
         </div>
       </div>
-    </div>
+    </SettingsSection>
   );
 }

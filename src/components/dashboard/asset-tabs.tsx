@@ -6,7 +6,6 @@ import { AssetTable } from '@/components/dashboard/asset-table';
 import { SummaryCard } from '@/components/dashboard/summary-card';
 import { Asset } from '@/types';
 import { useAssetStore } from '@/components/providers/asset-provider';
-import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from '@/hooks/use-i18n';
 import { Button } from '@/components/ui/button';
 import { Layers, List } from 'lucide-react';
@@ -104,27 +103,13 @@ export function AssetTabs({
             
             <TabsContent value="all" className="space-y-8 mt-8">
                 <SummaryCard assets={displayedAssetsAll} loading={loading} />
-                <Card 
-                  className="border-border/50 bg-card/50 backdrop-blur-sm shadow-lg"
-                  style={{ padding: '0' }}
-                >
-                    <CardContent className="p-0">
-                         <AssetTable assets={displayedAssetsAll} />
-                    </CardContent>
-                </Card>
+                <AssetTable assets={displayedAssetsAll} />
             </TabsContent>
             
             {allAccounts.map(acc => (
                 <TabsContent key={acc.id} value={acc.name} className="space-y-8 mt-8">
                     <SummaryCard assets={displayedAssetsByAccount[acc.name] || []} loading={loading} />
-                    <Card 
-                      className="border-border/50 bg-card/50 backdrop-blur-sm shadow-lg"
-                      style={{ padding: '0' }}
-                    >
-                        <CardContent className="p-0">
-                            <AssetTable assets={displayedAssetsByAccount[acc.name] || []} />
-                        </CardContent>
-                    </Card>
+                    <AssetTable assets={displayedAssetsByAccount[acc.name] || []} />
                 </TabsContent>
             ))}
         </Tabs>

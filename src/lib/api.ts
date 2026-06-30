@@ -1,6 +1,7 @@
 // API client that works in both web and Chrome extension environments
 import { Asset, ExchangeConfig, AiAnalysisResult, AiSettings, Language, PortfolioSnapshot } from '@/types';
 import { MarketRates } from '@/lib/rates';
+import { FearGreedIndex } from '@/lib/fear-greed';
 import { callAiAnalysis, getAiEndpoint, isLocalAiEndpoint } from '@/lib/ai-analyze';
 import { isChromeExtension } from './storage';
 
@@ -54,6 +55,14 @@ async function sendMessage<T>(message: any): Promise<T> {
       }
       return res.json();
     }
+    if (message.action === 'fetchFearGreedIndex') {
+      const res = await fetch('/api/fear-greed');
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to fetch Fear & Greed Index');
+      }
+      return res.json();
+    }
     if (message.action === 'analyzePortfolio') {
       const { url } = getAiEndpoint(message.aiSettings as AiSettings);
       if (!isLocalAiEndpoint(url)) {
@@ -87,6 +96,10 @@ export async function fetchPrices(assets: Asset[]): Promise<{ prices: Record<str
 
 export async function fetchMarketRates(): Promise<MarketRates> {
   return sendMessage<MarketRates>({ action: 'fetchMarketRates' });
+}
+
+export async function fetchFearGreedIndex(): Promise<FearGreedIndex> {
+  return sendMessage<FearGreedIndex>({ action: 'fetchFearGreedIndex' });
 }
 
 export async function analyzePortfolio(

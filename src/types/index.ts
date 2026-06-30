@@ -100,6 +100,14 @@ export interface AiAnalysisResult {
   questionsToConsider: string[];
 }
 
+export interface FearGreedAlertSettings {
+  enabled: boolean;
+  /** Alert when index < this; null = disabled */
+  alertBelow: number | null;
+  /** Alert when index > this; null = disabled */
+  alertAbove: number | null;
+}
+
 export interface AppSettings {
   hideSmallAssets: boolean;
   smallAssetsThreshold: number; // e.g. 1 USD
@@ -110,6 +118,7 @@ export interface AppSettings {
   /** Custom Solana mainnet RPC URL */
   customSolanaRpcUrl?: string;
   ai?: AiSettings;
+  fearGreedAlerts?: FearGreedAlertSettings;
 }
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
