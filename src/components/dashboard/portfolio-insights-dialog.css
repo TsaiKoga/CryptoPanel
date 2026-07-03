@@ -1,0 +1,87 @@
+/* AI 分析弹窗 — 仅 portfolio-insights 引入，不影响其他页面 */
+
+[data-insights-analysis-dialog] {
+  display: flex !important;
+  flex-direction: column !important;
+  width: calc(100% - 2rem) !important;
+  max-width: 36rem !important;
+  max-height: min(85vh, 720px) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  gap: 0 !important;
+}
+
+[data-insights-analysis-dialog] [data-insights-dialog-header] {
+  flex-shrink: 0 !important;
+  padding: 1.5rem 3.25rem 1.25rem 1.75rem !important;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 45%, transparent) !important;
+  text-align: left !important;
+}
+
+[data-insights-analysis-dialog] [data-insights-dialog-body] {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  padding: 1.5rem 1.75rem 1.75rem !important;
+  scrollbar-gutter: stable !important;
+}
+
+[data-insights-analysis-dialog] [data-insights-dialog-stack] {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.25rem !important;
+}
+
+[data-insights-analysis-dialog] [data-insights-dialog-disclaimer] {
+  padding: 0.875rem 1.125rem !important;
+  border-radius: 0.75rem !important;
+  line-height: 1.625 !important;
+}
+
+[data-insights-analysis-dialog] [data-insights-dialog-summary] {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 1.125rem !important;
+  padding: 1.25rem !important;
+  border-radius: 0.75rem !important;
+}
+
+[data-insights-analysis-dialog] [data-insights-dialog-section] {
+  padding: 1rem 1.25rem !important;
+  border-radius: 0.75rem !important;
+}
+
+[data-insights-analysis-dialog] [data-insights-dialog-section] h4 {
+  margin-bottom: 0.75rem !important;
+}
+
+[data-insights-analysis-dialog] [data-insights-dialog-section] p,
+[data-insights-analysis-dialog] [data-insights-dialog-section] li {
+  line-height: 1.625 !important;
+}
+
+[data-insights-analysis-dialog] [data-insights-dialog-error] {
+  padding: 0.875rem 1.125rem !important;
+  border-radius: 0.75rem !important;
+  line-height: 1.625 !important;
+}
+
+[data-insights-analysis-dialog] [data-slot='dialog-close'] {
+  top: 1.125rem !important;
+  right: 1.125rem !important;
+}
+
+@media (min-width: 40rem) {
+  [data-insights-analysis-dialog] [data-insights-dialog-header] {
+    padding: 1.75rem 3.5rem 1.5rem 2rem !important;
+  }
+
+  [data-insights-analysis-dialog] [data-insights-dialog-body] {
+    padding: 1.75rem 2rem 2rem !important;
+  }
+
+  [data-insights-analysis-dialog] [data-insights-dialog-stack] {
+    gap: 1.5rem !important;
+  }
+}

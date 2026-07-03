@@ -60,7 +60,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'analyzePortfolio') {
-    callAiAnalysis(request.snapshot, request.aiSettings, request.language)
+    callAiAnalysis(
+      request.snapshot,
+      request.aiSettings,
+      request.language,
+      request.marketContext
+    )
       .then((result) => sendResponse({ success: true, data: result }))
       .catch((error) =>
         sendResponse({

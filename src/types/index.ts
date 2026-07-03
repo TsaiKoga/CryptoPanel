@@ -92,11 +92,25 @@ export interface PortfolioSnapshot {
   };
 }
 
+export type AiActionStance = 'active' | 'watch' | 'defensive' | 'avoid';
+
 export interface AiAnalysisResult {
   healthScore: number;
+  /** 操作分层姿态：active=可定投小仓 / watch=观望 / defensive=风控 / avoid=暂停山寨 */
+  actionStance: AiActionStance;
+  /** 短标签，如 情绪底接近·宏观未确认 */
+  marketRegime: string;
   summary: string;
+  /** 分析逻辑链条 */
+  analysisLogic: string;
+  /** 行情判断：BTC 门控、情绪、宏观 */
+  marketTiming: string;
+  /** 组合与当前行情的匹配与建议方向 */
+  portfolioAlignment: string;
   risks: string[];
   suggestions: string[];
+  disciplineReminders: string[];
+  /** 待跟踪指标 */
   questionsToConsider: string[];
 }
 

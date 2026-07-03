@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from 'react';
-import { Asset, AiAnalysisResult, DEFAULT_AI_SETTINGS, PortfolioRiskFlag } from '@/types';
+import { Asset, AiActionStance, AiAnalysisResult, DEFAULT_AI_SETTINGS, PortfolioRiskFlag } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,14 +18,21 @@ import {
   Lightbulb,
   HelpCircle,
   Loader2,
+  GitBranch,
+  TrendingUp,
+  Scale,
+  BookOpen,
 } from 'lucide-react';
 import { useI18n } from '@/hooks/use-i18n';
 import { useAssetStore } from '@/components/providers/asset-provider';
-import { buildPortfolioSnapshot, snapshotFingerprint } from '@/lib/portfolio-snapshot';
+import { buildPortfolioSnapshot, analysisFingerprint } from '@/lib/portfolio-snapshot';
 import { normalizeAiSettings } from '@/lib/ai-analyze';
 import { aggregateAssetsBySymbol } from '@/lib/asset-aggregate';
-import { analyzePortfolio } from '@/lib/api';
+import { analyzePortfolio, fetchFearGreedIndex, fetchMarketRates } from '@/lib/api';
 import { analysisCache, isChromeExtension } from '@/lib/storage';
+import { cn } from '@/lib/utils';
+import type { ReactNode } from 'react';
+import './portfolio-insights-dialog.css';
 
 function scoreColor(score: number): string {
   if (score >= 75) return 'text-emerald-500';
@@ -37,6 +44,74 @@ function scoreRingColor(score: number): string {
   if (score >= 75) return 'stroke-emerald-500';
   if (score >= 50) return 'stroke-amber-500';
   return 'stroke-red-500';
+}
+
+function stanceStyles(stance: AiActionStance): string {
+  switch (stance) {
+    case 'active':
+      return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25';
+    case 'watch':
+      return 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25';
+    case 'defensive':
+      return 'bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/25';
+    case 'avoid':
+      return 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/25';
+    default:
+      return 'bg-muted text-muted-foreground border-border';
+  }
+}
+
+function AnalysisSection({
+  icon,
+  title,
+  children,
+  className,
+}: {
+  icon: ReactNode;
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      data-insights-dialog-section
+      className={cn(
+        'rounded-xl border border-border/50 bg-muted/25',
+        className
+      )}
+    >
+      <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+        {icon}
+        {title}
+      </h4>
+      {children}
+    </section>
+  );
+}
+
+function AnalysisList({ items, accent }: { items: string[]; accent?: 'amber' | 'primary' | 'muted' }) {
+  const borderClass =
+    accent === 'amber'
+      ? 'border-amber-500/35'
+      : accent === 'primary'
+        ? 'border-primary/35'
+        : 'border-border/70';
+
+  return (
+    <ul className="space-y-2.5">
+      {items.map((item, i) => (
+        <li
+          key={i}
+          className={cn(
+            'text-sm text-muted-foreground leading-relaxed pl-4 border-l-2',
+            borderClass
+          )}
+        >
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function HealthRing({ score }: { score: number }) {
@@ -101,9 +176,8 @@ export function PortfolioInsights({
     [aggregatedAssets]
   );
 
-  const fingerprint = useMemo(() => snapshotFingerprint(snapshot), [snapshot]);
-
   const flagLabel = (flag: PortfolioRiskFlag) => t(`insights.flags.${flag}`);
+  const stanceLabel = (stance: AiActionStance) => t(`insights.actionStance.${stance}`);
 
   const runAnalysis = async (force = false) => {
     setAnalysisError(null);
@@ -115,8 +189,29 @@ export function PortfolioInsights({
       return;
     }
 
+    let fearGreedValue: number | null = null;
+    let marketContext: { fearGreed?: { value: number; classification: string }; btcPriceUsd?: number } = {};
+
+    try {
+      const [fng, rates] = await Promise.all([
+        fetchFearGreedIndex().catch(() => null),
+        fetchMarketRates().catch(() => null),
+      ]);
+      if (fng) {
+        fearGreedValue = fng.value;
+        marketContext.fearGreed = { value: fng.value, classification: fng.classification };
+      }
+      if (rates?.btcPrice) {
+        marketContext.btcPriceUsd = rates.btcPrice;
+      }
+    } catch {
+      // proceed without market context
+    }
+
+    const cacheKey = analysisFingerprint(snapshot, fearGreedValue);
+
     if (!force) {
-      const cached = await analysisCache.get(fingerprint);
+      const cached = await analysisCache.get(cacheKey);
       if (cached) {
         setAnalysis(cached);
         setDialogOpen(true);
@@ -129,9 +224,14 @@ export function PortfolioInsights({
     setAnalysis(null);
 
     try {
-      const result = await analyzePortfolio(snapshot, normalizeAiSettings(ai), language);
+      const result = await analyzePortfolio(
+        snapshot,
+        normalizeAiSettings(ai),
+        language,
+        Object.keys(marketContext).length > 0 ? marketContext : undefined
+      );
       setAnalysis(result);
-      await analysisCache.set(fingerprint, result);
+      await analysisCache.set(cacheKey, result);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setAnalysisError(message);
@@ -231,106 +331,160 @@ export function PortfolioInsights({
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto px-7 py-7 sm:px-9 sm:py-8 gap-7">
-          <DialogHeader className="gap-3 pb-1 pr-8">
-            <DialogTitle className="flex items-center gap-2 text-xl leading-snug">
-              <Sparkles className="h-5 w-5 text-primary shrink-0" />
+        <DialogContent
+          data-insights-analysis-dialog
+          className="max-w-xl border-border/60 shadow-xl"
+        >
+          <DialogHeader data-insights-dialog-header className="space-y-2">
+            <DialogTitle className="flex items-center gap-2.5 text-lg font-semibold leading-snug sm:text-xl">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </span>
               {t('insights.dialogTitle')}
             </DialogTitle>
-            <DialogDescription className="text-sm leading-relaxed pr-1">
+            <DialogDescription className="text-sm leading-relaxed text-muted-foreground">
               {t('insights.dialogDesc')}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-6 px-0.5">
-            <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-xl px-5 py-4 leading-relaxed">
-              {t('insights.disclaimer')}
-            </p>
+          <div data-insights-dialog-body>
+            <div data-insights-dialog-stack>
+              <p
+                data-insights-dialog-disclaimer
+                className="text-sm text-amber-800 dark:text-amber-200/90 border border-amber-500/25 bg-amber-500/5"
+              >
+                {t('insights.disclaimer')}
+              </p>
 
-            {analysisError && (
-              <div className="text-sm text-destructive bg-destructive/10 rounded-xl px-5 py-4 leading-relaxed">
-                {analysisError}
-                {!isChromeExtension && analysisError.includes('extension') && (
-                  <p className="mt-3 text-xs text-muted-foreground">{t('aiSettings.webHint')}</p>
-                )}
-              </div>
-            )}
-
-            {analyzing && (
-              <div className="flex items-center justify-center gap-3 py-14 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>{t('insights.analyzing')}</span>
-              </div>
-            )}
-
-            {analysis && !analyzing && (
-              <div className="space-y-7 pb-2">
-                <div className="flex items-start gap-5 p-6 rounded-xl bg-muted/40">
-                  <HealthRing score={analysis.healthScore} />
-                  <p className="text-sm leading-relaxed pt-1 pr-1 min-w-0 flex-1">
-                    {analysis.summary}
-                  </p>
-                </div>
-
-                {analysis.risks.length > 0 && (
-                  <section className="space-y-3.5 px-1">
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-                      {t('insights.risks')}
-                    </h4>
-                    <ul className="space-y-3 text-sm text-muted-foreground">
-                      {analysis.risks.map((item, i) => (
-                        <li key={i} className="pl-5 pr-2 py-1 border-l-2 border-amber-500/30 leading-relaxed">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-
-                {analysis.suggestions.length > 0 && (
-                  <section className="space-y-3.5 px-1">
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
-                      <Lightbulb className="h-4 w-4 text-primary shrink-0" />
-                      {t('insights.suggestions')}
-                    </h4>
-                    <ul className="space-y-3 text-sm text-muted-foreground">
-                      {analysis.suggestions.map((item, i) => (
-                        <li key={i} className="pl-5 pr-2 py-1 border-l-2 border-primary/30 leading-relaxed">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-
-                {analysis.questionsToConsider.length > 0 && (
-                  <section className="space-y-3.5 px-1">
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
-                      <HelpCircle className="h-4 w-4 text-muted-foreground shrink-0" />
-                      {t('insights.questions')}
-                    </h4>
-                    <ul className="space-y-3 text-sm text-muted-foreground">
-                      {analysis.questionsToConsider.map((item, i) => (
-                        <li key={i} className="pl-5 pr-2 py-1 border-l-2 border-border leading-relaxed">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full rounded-xl mt-1"
-                  onClick={() => runAnalysis(true)}
-                  disabled={analyzing}
+              {analysisError && (
+                <div
+                  data-insights-dialog-error
+                  className="rounded-xl border border-destructive/30 bg-destructive/10 text-sm text-destructive"
                 >
-                  {t('insights.reanalyze')}
-                </Button>
-              </div>
-            )}
+                  {analysisError}
+                  {!isChromeExtension && analysisError.includes('extension') && (
+                    <p className="mt-2.5 text-xs text-muted-foreground">{t('aiSettings.webHint')}</p>
+                  )}
+                </div>
+              )}
+
+              {analyzing && (
+                <div className="flex items-center justify-center gap-3 py-16 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>{t('insights.analyzing')}</span>
+                </div>
+              )}
+
+              {analysis && !analyzing && (
+                <div data-insights-dialog-stack>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium',
+                        stanceStyles(analysis.actionStance)
+                      )}
+                    >
+                      {stanceLabel(analysis.actionStance)}
+                    </span>
+                    {analysis.marketRegime && (
+                      <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-3 py-1 text-xs text-muted-foreground">
+                        {analysis.marketRegime}
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    data-insights-dialog-summary
+                    className="rounded-xl border border-border/50 bg-muted/30"
+                  >
+                    <HealthRing score={analysis.healthScore} />
+                    <p className="min-w-0 flex-1 pt-1 text-sm leading-relaxed text-foreground/90">
+                      {analysis.summary}
+                    </p>
+                  </div>
+
+                  {analysis.analysisLogic && (
+                    <AnalysisSection
+                      icon={<GitBranch className="h-4 w-4 text-primary shrink-0" />}
+                      title={t('insights.analysisLogic')}
+                    >
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {analysis.analysisLogic}
+                      </p>
+                    </AnalysisSection>
+                  )}
+
+                  {analysis.marketTiming && (
+                    <AnalysisSection
+                      icon={<TrendingUp className="h-4 w-4 text-primary shrink-0" />}
+                      title={t('insights.marketTiming')}
+                    >
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {analysis.marketTiming}
+                      </p>
+                    </AnalysisSection>
+                  )}
+
+                  {analysis.portfolioAlignment && (
+                    <AnalysisSection
+                      icon={<Scale className="h-4 w-4 text-primary shrink-0" />}
+                      title={t('insights.portfolioAlignment')}
+                    >
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {analysis.portfolioAlignment}
+                      </p>
+                    </AnalysisSection>
+                  )}
+
+                  {analysis.risks.length > 0 && (
+                    <AnalysisSection
+                      icon={<AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />}
+                      title={t('insights.risks')}
+                      className="border-amber-500/20 bg-amber-500/5"
+                    >
+                      <AnalysisList items={analysis.risks} accent="amber" />
+                    </AnalysisSection>
+                  )}
+
+                  {analysis.suggestions.length > 0 && (
+                    <AnalysisSection
+                      icon={<Lightbulb className="h-4 w-4 text-primary shrink-0" />}
+                      title={t('insights.suggestions')}
+                    >
+                      <AnalysisList items={analysis.suggestions} accent="primary" />
+                    </AnalysisSection>
+                  )}
+
+                  {analysis.disciplineReminders.length > 0 && (
+                    <AnalysisSection
+                      icon={<BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />}
+                      title={t('insights.disciplineReminders')}
+                    >
+                      <AnalysisList items={analysis.disciplineReminders} accent="muted" />
+                    </AnalysisSection>
+                  )}
+
+                  {analysis.questionsToConsider.length > 0 && (
+                    <AnalysisSection
+                      icon={<HelpCircle className="h-4 w-4 text-muted-foreground shrink-0" />}
+                      title={t('insights.questions')}
+                    >
+                      <AnalysisList items={analysis.questionsToConsider} accent="muted" />
+                    </AnalysisSection>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full rounded-xl"
+                    onClick={() => runAnalysis(true)}
+                    disabled={analyzing}
+                  >
+                    {t('insights.reanalyze')}
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -1,5 +1,5 @@
 // Storage utility that works in both web and Chrome extension environments
-import { FearGreedIndex } from '@/lib/fear-greed';
+import { normalizeAnalysisResult } from '@/lib/ai-analyze';
 import { FearGreedAlertState } from '@/lib/fear-greed-alerts';
 import { ExchangeConfig, WalletConfig, AppSettings, Asset, AiAnalysisResult } from '@/types';
 
@@ -418,7 +418,11 @@ export const analysisCache = {
         const data: CachedAnalysis = JSON.parse(raw);
         if (data.fingerprint !== fingerprint) return null;
         if (Date.now() - data.timestamp > ANALYSIS_CACHE_DURATION) return null;
-        return data.result;
+        return normalizeAnalysisResult({
+          healthScore: data.result.healthScore ?? 0,
+          summary: data.result.summary ?? '',
+          ...data.result,
+        });
       } catch {
         return null;
       }

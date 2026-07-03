@@ -154,3 +154,14 @@ export function snapshotFingerprint(snapshot: PortfolioSnapshot): string {
     .map((h) => `${h.symbol}:${h.pct.toFixed(1)}`);
   return `${snapshot.totalUsd.toFixed(0)}|${parts.join(',')}`;
 }
+
+/** Include market sentiment bucket so analysis refreshes when regime shifts. */
+export function analysisFingerprint(
+  snapshot: PortfolioSnapshot,
+  fearGreedValue?: number | null
+): string {
+  const base = snapshotFingerprint(snapshot);
+  if (fearGreedValue == null || Number.isNaN(fearGreedValue)) return base;
+  const bucket = Math.floor(fearGreedValue / 15);
+  return `${base}|fng:${bucket}`;
+}

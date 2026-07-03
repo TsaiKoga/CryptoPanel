@@ -1,4 +1,5 @@
 import {
+  AiActionStance,
   AiAnalysisResult,
   AiProvider,
   AiSettings,
@@ -6,6 +7,11 @@ import {
   Language,
   PortfolioSnapshot,
 } from '@/types';
+import { FearGreedIndex } from '@/lib/fear-greed';
+import {
+  CRYPTO_INVESTMENT_FRAMEWORK,
+  CRYPTO_INVESTMENT_OUTPUT_SCHEMA,
+} from '@/lib/prompts/crypto-investment-framework';
 
 const PROVIDER_DEFAULTS: Record<
   Exclude<AiProvider, 'custom'>,
@@ -108,6 +114,9 @@ export function serializeSnapshotForAi(
     },
     stablecoinPct: Number(snapshot.stablecoinPct.toFixed(2)),
     btcEthPct: Number(snapshot.btcEthPct.toFixed(2)),
+    altcoinPct: Number(
+      Math.max(0, 100 - snapshot.stablecoinPct - snapshot.btcEthPct).toFixed(2)
+    ),
     healthScore: snapshot.healthScore,
     flags: snapshot.flags,
     dataQuality: snapshot.dataQuality,
@@ -120,33 +129,87 @@ export function serializeSnapshotForAi(
   return payload;
 }
 
+export interface AiMarketContext {
+  fearGreed?: Pick<FearGreedIndex, 'value' | 'classification'> | null;
+  btcPriceUsd?: number | null;
+}
+
+const VALID_STANCES: AiActionStance[] = ['active', 'watch', 'defensive', 'avoid'];
+
+export function normalizeAnalysisResult(
+  partial: Partial<AiAnalysisResult> & Pick<AiAnalysisResult, 'healthScore' | 'summary'>
+): AiAnalysisResult {
+  const stance = VALID_STANCES.includes(partial.actionStance as AiActionStance)
+    ? (partial.actionStance as AiActionStance)
+    : 'watch';
+
+  return {
+    healthScore: partial.healthScore,
+    actionStance: stance,
+    marketRegime: partial.marketRegime ?? '',
+    summary: partial.summary,
+    analysisLogic: partial.analysisLogic ?? '',
+    marketTiming: partial.marketTiming ?? '',
+    portfolioAlignment: partial.portfolioAlignment ?? '',
+    risks: partial.risks ?? [],
+    suggestions: partial.suggestions ?? [],
+    disciplineReminders: partial.disciplineReminders ?? [],
+    questionsToConsider: partial.questionsToConsider ?? [],
+  };
+}
+
+function serializeMarketContext(context?: AiMarketContext): Record<string, unknown> | null {
+  if (!context) return null;
+  const out: Record<string, unknown> = {};
+  if (context.fearGreed) {
+    out.fearGreedIndex = context.fearGreed.value;
+    out.fearGreedClassification = context.fearGreed.classification;
+  }
+  if (context.btcPriceUsd != null && context.btcPriceUsd > 0) {
+    out.btcPriceUsd = Number(context.btcPriceUsd.toFixed(2));
+  }
+  if (Object.keys(out).length === 0) return null;
+  return out;
+}
+
 export function buildAnalysisPrompt(
   snapshot: PortfolioSnapshot,
   settings: AiSettings,
-  language: Language
+  language: Language,
+  marketContext?: AiMarketContext
 ): { system: string; user: string } {
   const langLabel = language === 'zh' ? '简体中文' : 'English';
   const payload = serializeSnapshotForAi(snapshot, settings.privacyMode);
+  const market = serializeMarketContext(marketContext);
 
-  const system = `You are a crypto portfolio analyst assistant. Respond ONLY with valid JSON (no markdown fences).
+  const system = `You are a crypto market and portfolio analyst using the "crypto-investment-analysis" framework (distilled from Lao Gao / 老高 market analysis methodology).
+Respond ONLY with valid JSON (no markdown fences).
+
+${CRYPTO_INVESTMENT_FRAMEWORK}
+
 Output schema:
-{
-  "healthScore": number (0-100),
-  "summary": string,
-  "risks": string[],
-  "suggestions": string[],
-  "questionsToConsider": string[]
-}
+${CRYPTO_INVESTMENT_OUTPUT_SCHEMA}
+
 Rules:
 - Write all text fields in ${langLabel}.
-- This is NOT financial advice; focus on portfolio structure, concentration, custody split, and data quality.
-- Do NOT recommend specific buy/sell prices or guaranteed returns.
-- Base healthScore on diversification, concentration, CEX vs on-chain split, stablecoin buffer, and data flags.
+- This is NOT financial advice. Do NOT recommend specific buy/sell prices, leverage, or guaranteed returns.
+- Never recommend leveraged bottom-fishing (杠杆抄底).
+- Use provided fearGreedIndex and btcPriceUsd when present; clearly state when on-chain/ETF/macro data is NOT provided and analysis is partial.
+- healthScore: portfolio structure (diversification, concentration, CEX/on-chain, stablecoin buffer, data flags) AND fit with inferred market regime.
+- actionStance: active=BTC gate pass + DCA/small add ok; watch=mixed signals; defensive=reduce alt/cex risk; avoid=BTC gate fail (~$50k threat) or extreme risk-off.
+- If btcPriceUsd < 52000, treat BTC gate as elevated risk in marketTiming and portfolioAlignment.
+- If fearGreedIndex <= 25, discuss sentiment bottom; if >= 75, discuss euphoria/退潮 risk.
 - Keep each list item concise (1-2 sentences max).`;
 
-  const user = `Analyze this portfolio snapshot and return JSON only:\n${JSON.stringify(payload, null, 2)}`;
+  const userParts = [
+    'Analyze current market regime and portfolio fit using the framework. Return JSON only.',
+    `Portfolio snapshot:\n${JSON.stringify(payload, null, 2)}`,
+  ];
+  if (market) {
+    userParts.push(`Market context:\n${JSON.stringify(market, null, 2)}`);
+  }
 
-  return { system, user };
+  return { system, user: userParts.join('\n\n') };
 }
 
 export function parseAnalysisResponse(raw: string): AiAnalysisResult {
@@ -172,22 +235,35 @@ export function parseAnalysisResponse(raw: string): AiAnalysisResult {
     return value.filter((item): item is string => typeof item === 'string');
   };
 
-  return {
-    healthScore:
-      typeof obj.healthScore === 'number'
-        ? Math.max(0, Math.min(100, Math.round(obj.healthScore)))
-        : 0,
+  const healthScore =
+    typeof obj.healthScore === 'number'
+      ? Math.max(0, Math.min(100, Math.round(obj.healthScore)))
+      : 0;
+
+  return normalizeAnalysisResult({
+    healthScore,
+    actionStance:
+      typeof obj.actionStance === 'string'
+        ? (obj.actionStance as AiActionStance)
+        : 'watch',
+    marketRegime: typeof obj.marketRegime === 'string' ? obj.marketRegime : '',
     summary: typeof obj.summary === 'string' ? obj.summary : '',
+    analysisLogic: typeof obj.analysisLogic === 'string' ? obj.analysisLogic : '',
+    marketTiming: typeof obj.marketTiming === 'string' ? obj.marketTiming : '',
+    portfolioAlignment:
+      typeof obj.portfolioAlignment === 'string' ? obj.portfolioAlignment : '',
     risks: toStringArray(obj.risks),
     suggestions: toStringArray(obj.suggestions),
+    disciplineReminders: toStringArray(obj.disciplineReminders),
     questionsToConsider: toStringArray(obj.questionsToConsider),
-  };
+  });
 }
 
 export async function callAiAnalysis(
   snapshot: PortfolioSnapshot,
   settings: AiSettings,
-  language: Language
+  language: Language,
+  marketContext?: AiMarketContext
 ): Promise<AiAnalysisResult> {
   const normalized = normalizeAiSettings(settings);
 
@@ -196,7 +272,12 @@ export async function callAiAnalysis(
   }
 
   const { url, model } = getAiEndpoint(normalized);
-  const { system, user } = buildAnalysisPrompt(snapshot, normalized, language);
+  const { system, user } = buildAnalysisPrompt(
+    snapshot,
+    normalized,
+    language,
+    marketContext
+  );
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

@@ -2,7 +2,7 @@
 import { Asset, ExchangeConfig, AiAnalysisResult, AiSettings, Language, PortfolioSnapshot } from '@/types';
 import { MarketRates } from '@/lib/rates';
 import { FearGreedIndex } from '@/lib/fear-greed';
-import { callAiAnalysis, getAiEndpoint, isLocalAiEndpoint } from '@/lib/ai-analyze';
+import { AiMarketContext, callAiAnalysis, getAiEndpoint, isLocalAiEndpoint } from '@/lib/ai-analyze';
 import { isChromeExtension } from './storage';
 
 // Send message to background script
@@ -73,7 +73,8 @@ async function sendMessage<T>(message: any): Promise<T> {
       return callAiAnalysis(
         message.snapshot as PortfolioSnapshot,
         message.aiSettings as AiSettings,
-        message.language as Language
+        message.language as Language,
+        message.marketContext as AiMarketContext | undefined
       );
     }
     throw new Error('Unknown action');
@@ -105,13 +106,15 @@ export async function fetchFearGreedIndex(): Promise<FearGreedIndex> {
 export async function analyzePortfolio(
   snapshot: PortfolioSnapshot,
   aiSettings: AiSettings,
-  language: Language
+  language: Language,
+  marketContext?: AiMarketContext
 ): Promise<AiAnalysisResult> {
   return sendMessage<AiAnalysisResult>({
     action: 'analyzePortfolio',
     snapshot,
     aiSettings,
     language,
+    marketContext,
   });
 }
 
