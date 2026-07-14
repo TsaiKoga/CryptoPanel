@@ -26,9 +26,9 @@
 
 ### 📊 统一资产管理
 - **CEX 资产同步**：支持 Binance、OKX 等主流交易所
-- **链上资产查询**：支持多个 EVM 兼容链
+- **链上资产查询**：支持多条 EVM 兼容链与 Solana
 - **DeFi 协议支持**：自动识别 EigenLayer、Aerodrome、Aave、Stargate 等协议资产
-- **实时价格**：自动获取资产价格（DeFiLlama、CryptoCompare）
+- **实时价格**：自动获取资产价格（DeFiLlama、CryptoCompare、CoinGecko）
 
 ### 🎨 用户体验
 - **多语言支持**：中文、英文
@@ -62,6 +62,8 @@
 
 ## 🔗 支持的区块链
 
+### EVM 链
+
 - ✅ **Ethereum** (主网)
 - ✅ **BSC** (Binance Smart Chain)
 - ✅ **Polygon**
@@ -77,8 +79,15 @@
 - ✅ **Ink**
 - ✅ **Plume**
 - ✅ **HyperEVM**
-- ✅ **Solona**
-- ✅ **Hyperliquid**
+- ✅ **Robinhood Chain** (Chain ID: 4663)
+  - 原生 **ETH**
+  - **USDC** / **USDT**（canonical bridge 确定性地址，桥上线并有人桥入后生效）
+  - **CASHCAT**（CoinGecko 定价）
+
+### 非 EVM 链
+
+- ✅ **Solana** — SOL 及 SPL 代币（含 xStock 等）
+- ✅ **Hyperliquid** — 永续合约账户资产
 
 ## 🛠️ 支持的 DeFi 协议
 
@@ -143,7 +152,7 @@
 #### 2. 添加链上钱包
 
 1. 在设置页面的"链上钱包 (On-Chain)"标签页
-2. 输入钱包地址（EVM 兼容地址）
+2. 输入钱包地址（支持 EVM 地址或 Solana 地址）
 3. 输入备注名称（可选）
 4. 点击"添加钱包"
 
@@ -161,7 +170,7 @@
 - 切换主题（浅色/深色/跟随系统）
 - 隐藏小额资产
 - 设置小额资产阈值
-- 配置自定义 RPC 节点
+- 配置自定义 EVM RPC 节点与 Solana RPC
 
 #### 5. 组合洞察与 AI 分析
 
@@ -210,7 +219,8 @@
 - **Sonner** - Toast 通知
 
 ### 区块链相关
-- **viem 2.41.2** - Ethereum 工具库
+- **viem 2.41.2** - EVM 链上交互
+- **@solana/web3.js 1.98** - Solana 链上交互
 - **ccxt 4.5.24** - 加密货币交易所库
 
 ### 其他
@@ -254,7 +264,9 @@ CryptoPanel/
 │   │   ├── api.ts          # API 调用（含 AI 分析路由）
 │   │   ├── portfolio-snapshot.ts  # 组合快照与健康度
 │   │   ├── ai-analyze.ts   # AI Prompt 与直连调用
-│   │   ├── onchain.ts      # 链上资产获取
+│   │   ├── onchain.ts      # EVM 链上资产获取
+│   │   ├── solana-core.ts  # Solana 链上资产获取
+│   │   ├── chains/         # 自定义 EVM 链定义（如 HyperEVM、Robinhood）
 │   │   ├── protocols/     # DeFi 协议集成
 │   │   ├── storage.ts      # 存储管理
 │   │   └── i18n.ts         # 国际化
@@ -380,10 +392,12 @@ npm run lint
 
 感谢以下开源项目和服务：
 
-- [viem](https://viem.sh/) - Ethereum 工具库
+- [viem](https://viem.sh/) - EVM 工具库
+- [@solana/web3.js](https://solana.com/docs/clients/javascript) - Solana 工具库
 - [ccxt](https://github.com/ccxt/ccxt) - 加密货币交易所库
 - [DeFiLlama](https://defillama.com/) - 价格数据
 - [CryptoCompare](https://www.cryptocompare.com/) - 价格数据
+- [CoinGecko](https://www.coingecko.com/) - 价格数据
 - [Radix UI](https://www.radix-ui.com/) - UI 组件库
 - [Tailwind CSS](https://tailwindcss.com/) - CSS 框架
 

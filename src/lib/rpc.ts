@@ -18,6 +18,7 @@ export const RPC_CHAIN_LIST: Array<{ id: number; name: string }> = [
   { id: 57073, name: 'Ink' },
   { id: 98866, name: 'Plume' },
   { id: 999, name: 'HyperEVM' },
+  { id: 4663, name: 'Robinhood Chain' },
 ];
 
 let customRpcUrls: Record<number, string> = {};
@@ -103,6 +104,9 @@ const CHAIN_RPC_FALLBACKS: Record<number, string[]> = {
   ],
   999: [
     'https://rpc.hyperliquid.xyz/evm',
+  ],
+  4663: [
+    'https://rpc.mainnet.chain.robinhood.com',
   ],
 };
 

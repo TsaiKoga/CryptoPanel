@@ -26,9 +26,9 @@ Unified management of your CEX and on-chain cryptocurrency assets
 
 ### 📊 Unified Asset Management
 - **CEX Asset Sync**: Supports Binance, OKX and other mainstream exchanges
-- **On-Chain Asset Query**: Supports multiple EVM-compatible chains
+- **On-Chain Asset Query**: Supports multiple EVM-compatible chains and Solana
 - **DeFi Protocol Support**: Automatically identifies protocol assets such as EigenLayer, Aerodrome, Aave, Stargate
-- **Real-Time Prices**: Automatically fetches asset prices (DeFiLlama, CryptoCompare)
+- **Real-Time Prices**: Automatically fetches asset prices (DeFiLlama, CryptoCompare, CoinGecko)
 
 ### 🎨 User Experience
 - **Multi-Language Support**: Chinese, English
@@ -62,6 +62,8 @@ Unified management of your CEX and on-chain cryptocurrency assets
 
 ## 🔗 Supported Blockchains
 
+### EVM Chains
+
 - ✅ **Ethereum** (Mainnet)
 - ✅ **BSC** (Binance Smart Chain)
 - ✅ **Polygon**
@@ -77,8 +79,15 @@ Unified management of your CEX and on-chain cryptocurrency assets
 - ✅ **Ink**
 - ✅ **Plume**
 - ✅ **HyperEVM**
-- ✅ **Solona**
-- ✅ **Hyperliquid**
+- ✅ **Robinhood Chain** (Chain ID: 4663)
+  - Native **ETH**
+  - **USDC** / **USDT** (canonical bridge deterministic addresses; active once bridged)
+  - **CASHCAT** (CoinGecko pricing)
+
+### Non-EVM Chains
+
+- ✅ **Solana** — SOL and SPL tokens (including xStock, etc.)
+- ✅ **Hyperliquid** — perpetual account assets
 
 ## 🛠️ Supported DeFi Protocols
 
@@ -143,7 +152,7 @@ Unified management of your CEX and on-chain cryptocurrency assets
 #### 2. Add On-Chain Wallets
 
 1. In the settings page, go to the "On-Chain Wallet" tab
-2. Enter a wallet address (EVM-compatible address)
+2. Enter a wallet address (EVM or Solana)
 3. Enter a note name (optional)
 4. Click "Add Wallet"
 
@@ -161,7 +170,7 @@ In the "General Settings" tab, you can:
 - Switch theme (Light/Dark/Follow System)
 - Hide small assets
 - Set small asset threshold
-- Configure custom RPC endpoints
+- Configure custom EVM RPC endpoints and Solana RPC
 
 #### 5. Portfolio Insights & AI Analysis
 
@@ -210,7 +219,8 @@ In the "General Settings" tab, you can:
 - **Sonner** - Toast notifications
 
 ### Blockchain Related
-- **viem 2.41.2** - Ethereum utility library
+- **viem 2.41.2** - EVM on-chain interaction
+- **@solana/web3.js 1.98** - Solana on-chain interaction
 - **ccxt 4.5.24** - Cryptocurrency exchange library
 
 ### Others
@@ -254,7 +264,9 @@ CryptoPanel/
 │   │   ├── api.ts          # API calls (incl. AI analysis routing)
 │   │   ├── portfolio-snapshot.ts  # Portfolio snapshot & health score
 │   │   ├── ai-analyze.ts   # AI prompts & direct provider calls
-│   │   ├── onchain.ts      # On-chain asset fetching
+│   │   ├── onchain.ts      # EVM on-chain asset fetching
+│   │   ├── solana-core.ts  # Solana on-chain asset fetching
+│   │   ├── chains/         # Custom EVM chain definitions (e.g. HyperEVM, Robinhood)
 │   │   ├── protocols/     # DeFi protocol integration
 │   │   ├── storage.ts      # Storage management
 │   │   └── i18n.ts         # Internationalization
@@ -380,10 +392,12 @@ For detailed terms of service, please see [TERMS_OF_SERVICE.md](./TERMS_OF_SERVI
 
 Thanks to the following open source projects and services:
 
-- [viem](https://viem.sh/) - Ethereum utility library
+- [viem](https://viem.sh/) - EVM utility library
+- [@solana/web3.js](https://solana.com/docs/clients/javascript) - Solana utility library
 - [ccxt](https://github.com/ccxt/ccxt) - Cryptocurrency exchange library
 - [DeFiLlama](https://defillama.com/) - Price data
 - [CryptoCompare](https://www.cryptocompare.com/) - Price data
+- [CoinGecko](https://www.coingecko.com/) - Price data
 - [Radix UI](https://www.radix-ui.com/) - UI component library
 - [Tailwind CSS](https://tailwindcss.com/) - CSS framework
 

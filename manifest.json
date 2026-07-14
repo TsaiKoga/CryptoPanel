@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CryptoPanel",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "加密货币资产看板 - 统一管理您的 CEX 和链上资产",
   "permissions": [
     "storage",
@@ -16,7 +16,8 @@
     "https://api.alternative.me/*",
     "https://*.rpc.thirdweb.com/*",
     "https://*.infura.io/*",
-    "https://*.alchemy.com/*"
+    "https://*.alchemy.com/*",
+    "https://rpc.mainnet.chain.robinhood.com/*"
   ],
   "optional_host_permissions": [
     "https://api.openai.com/*",

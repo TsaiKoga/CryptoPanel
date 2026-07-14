@@ -35,6 +35,7 @@ const SYMBOL_MAPPING: Record<string, string> = {
   ZRO: 'ZRO',
   ZORA: 'ZORA',
   VIRTUAL: 'VIRTUAL',
+  CASHCAT: 'CASHCAT',
   JTO: 'JTO',
   BONK: 'BONK',
   WIF: 'WIF',

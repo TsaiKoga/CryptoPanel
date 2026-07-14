@@ -3,6 +3,7 @@ import { mainnet, bsc, polygon, optimism, arbitrum, base, zksync, soneium, xLaye
 import { Asset } from '@/types';
 import { getChainClient } from '@/lib/rpc';
 import { hyperEvm } from '@/lib/chains/hyperevm';
+import { robinhood } from '@/lib/chains/robinhood';
 
 // Define Ink Chain
 export const ink = defineChain({
@@ -78,6 +79,7 @@ export const SUPPORTED_CHAINS = {
   ink: ink,
   plume: plumeMainnet,
   hyperevm: hyperEvm,
+  robinhood: robinhood,
 };
 
 // Map chain ID to DeFiLlama chain name
@@ -97,6 +99,7 @@ const DEFILLAMA_CHAIN_MAP: Record<number, string> = {
     [ink.id]: 'ink', 
     [plumeMainnet.id]: 'plume', 
     [hyperEvm.id]: 'hyperliquid', // Often mapped to hyperliquid
+    [robinhood.id]: 'robinhood',
 };
 
 // Common tokens to scan (simplified for MVP)
@@ -168,7 +171,13 @@ const COMMON_TOKENS: Record<number, Array<{ symbol: string, address: string, dec
     // HyperEVM mainnet: common ERC20 assets
     { symbol: 'USDC', address: '0xb88339CB7199b77E23DB6E890353E22632Ba630f', decimals: 6 },
     { symbol: 'PURR', address: '0x9b498C3c8A0b8CD8BA1D9851d40D186F1872b44E', decimals: 18 },
-  ]
+  ],
+  [robinhood.id]: [
+    // Canonical bridge L2 addresses (Arbitrum standard gateway); active once ERC-20 bridge deposits land
+    { symbol: 'USDC', address: '0x2D68E50Ef5f5CD4E070C81e2A13280975c4D0e0B', decimals: 6 },
+    { symbol: 'USDT', address: '0x39D725738006438ccac2d3176ABcef3B1A4a2517', decimals: 6 },
+    { symbol: 'CASHCAT', address: '0x020bfc650a365f8bb26819deaabf3e21291018b4', decimals: 18 },
+  ],
 };
 
 const ERC20_ABI = parseAbi([
@@ -228,6 +237,8 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
              
              const amount = parseFloat(formatUnits(tokenBalance, token.decimals));
              if (amount > 0) {
+                 const isCashCat =
+                   chain.id === robinhood.id && token.symbol === 'CASHCAT';
                  assets.push({
                      symbol: token.symbol,
                      amount: amount,
@@ -236,8 +247,10 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
                      source: `Wallet (${chain.name})`,
                      type: 'wallet',
                      chainId: chain.id,
-                     chainName: DEFILLAMA_CHAIN_MAP[chain.id],
-                     contractAddress: token.address
+                     chainName: isCashCat
+                       ? 'coingecko'
+                       : DEFILLAMA_CHAIN_MAP[chain.id],
+                     contractAddress: isCashCat ? 'cash-cat' : token.address,
                  });
              }
           } catch (e) {
