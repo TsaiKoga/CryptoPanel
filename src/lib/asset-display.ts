@@ -1,6 +1,33 @@
-import { Asset } from '@/types';
+import { Asset, Language } from '@/types';
 
-/** Base ticker for CEX rows like `BTC (简单赚币)`. */
+/** Longer zh labels first so「资金账号」won't be partially replaced by「资金」. */
+const CEX_PRODUCT_LABELS: Array<{ zh: string; en: string }> = [
+  { zh: '灵活赚币', en: 'Flexible Earn' },
+  { zh: '锁定赚币', en: 'Locked Earn' },
+  { zh: '简单赚币', en: 'Simple Earn' },
+  { zh: '链上赚币', en: 'On-chain Earn' },
+  { zh: '资金账号', en: 'Funding Account' },
+  { zh: '交易账号', en: 'Trading Account' },
+  { zh: '现货', en: 'Spot' },
+  { zh: '资金', en: 'Funding' },
+  { zh: '交易', en: 'Trading' },
+];
+
+/** Localize CEX earn/account suffixes baked into symbol/source (storage may stay zh). */
+export function localizeCexLabelText(text: string, language: Language): string {
+  if (!text) return text;
+  let result = text;
+  for (const { zh, en } of CEX_PRODUCT_LABELS) {
+    if (language === 'en') {
+      result = result.split(zh).join(en);
+    } else {
+      result = result.split(en).join(zh);
+    }
+  }
+  return result;
+}
+
+/** Base ticker for CEX rows like `BTC (简单赚币)` / `BTC (Simple Earn)`. */
 export function assetBaseSymbol(symbol: string): string {
   return symbol.split(' ')[0].trim().toUpperCase();
 }

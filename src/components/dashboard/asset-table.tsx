@@ -2,9 +2,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Asset } from '@/types';
 import { ExternalLink, TrendingUp } from 'lucide-react';
 import { useI18n } from '@/hooks/use-i18n';
+import { localizeCexLabelText } from '@/lib/asset-display';
 
 export function AssetTable({ assets }: { assets: Asset[] }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   return (
     <div className="rounded-2xl border-2 border-border/50 overflow-hidden bg-card/80 backdrop-blur-sm shadow-xl">
       <div className="overflow-x-auto">
@@ -58,7 +59,9 @@ export function AssetTable({ assets }: { assets: Asset[] }) {
                       <div className="h-3 w-3 rounded-full bg-gradient-to-br from-primary to-primary/60 shadow-lg shadow-primary/50 group-hover:scale-125 transition-transform" />
                       <div className="absolute inset-0 h-3 w-3 rounded-full bg-primary/30 animate-ping" />
                     </div>
-                    <span className="font-bold text-base">{asset.symbol}</span>
+                    <span className="font-bold text-base">
+                      {localizeCexLabelText(asset.symbol, language)}
+                    </span>
                   </div>
                 </TableCell>
                 <TableCell 
@@ -101,7 +104,7 @@ export function AssetTable({ assets }: { assets: Asset[] }) {
                 </TableCell>
                 <TableCell style={{ padding: '1.5rem 2rem' }}>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted/70 text-muted-foreground border border-border/50">
-                    {asset.source}
+                    {localizeCexLabelText(asset.source, language)}
                   </span>
                 </TableCell>
               </TableRow>

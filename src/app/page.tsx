@@ -14,7 +14,8 @@ import { useI18n } from '@/hooks/use-i18n';
 import { aggregateAssetsBySymbol } from '@/lib/asset-aggregate';
 
 export default function Dashboard() {
-  const { assets, loading, error, refresh } = useAssetFetcher();
+  const { assets, loading, loadingByAccount, accountAssets, error, refresh } =
+    useAssetFetcher();
   const { t } = useI18n();
   const [aggregateEnabled, setAggregateEnabled] = useState(false);
 
@@ -129,6 +130,8 @@ export default function Dashboard() {
             <AssetTabs
               assets={assets}
               loading={loading}
+              loadingByAccount={loadingByAccount}
+              accountAssets={accountAssets}
               aggregateEnabled={aggregateEnabled}
               onToggleAggregate={() => setAggregateEnabled((v) => !v)}
             />

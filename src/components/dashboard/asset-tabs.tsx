@@ -11,14 +11,30 @@ import { Button } from '@/components/ui/button';
 import { Layers, List } from 'lucide-react';
 import { aggregateAssetsBySymbol } from '@/lib/asset-aggregate';
 
+function filterAssetsForAccount(
+  assets: Asset[],
+  acc: { name: string; type: string }
+): Asset[] {
+  return assets.filter((a) => {
+    if (acc.type === 'cex') {
+      return a.source === acc.name || a.source.startsWith(`${acc.name} ·`);
+    }
+    return a.source === acc.name || a.source.startsWith(`${acc.name} (`);
+  });
+}
+
 export function AssetTabs({
   assets,
   loading,
+  loadingByAccount = {},
+  accountAssets = {},
   aggregateEnabled,
   onToggleAggregate,
 }: {
   assets: Asset[];
   loading: boolean;
+  loadingByAccount?: Record<string, boolean>;
+  accountAssets?: Record<string, Asset[]>;
   aggregateEnabled: boolean;
   onToggleAggregate: () => void;
 }) {
@@ -29,20 +45,13 @@ export function AssetTabs({
       ...exchanges.map(e => ({ id: e.id, name: e.name, type: 'cex' })),
       ...wallets.map(w => ({ id: w.id, name: w.name, type: 'wallet' }))
   ];
-  
-  const groupedAssets: Record<string, Asset[]> = {
-      'all': assets
+
+  const assetsForAccount = (acc: { name: string; type: string }): Asset[] => {
+    if (Object.prototype.hasOwnProperty.call(accountAssets, acc.name)) {
+      return accountAssets[acc.name];
+    }
+    return filterAssetsForAccount(assets, acc);
   };
-  
-  allAccounts.forEach(acc => {
-      groupedAssets[acc.name] = assets.filter(a => {
-          if (acc.type === 'cex') {
-              return a.source === acc.name || a.source.startsWith(`${acc.name} ·`);
-          } else {
-              return a.source === acc.name || a.source.startsWith(`${acc.name} (`);
-          }
-      });
-  });
 
   const displayedAssetsAll = useMemo(
     () =>
@@ -54,18 +63,16 @@ export function AssetTabs({
   );
 
   const displayedAssetsByAccount = useMemo(() => {
-    if (!aggregateEnabled) return groupedAssets;
-
-    const next: Record<string, Asset[]> = { all: displayedAssetsAll };
+    const next: Record<string, Asset[]> = {};
     allAccounts.forEach((acc) => {
-      next[acc.name] = aggregateAssetsBySymbol(
-        groupedAssets[acc.name] || [],
-        t('assetTable.aggregatedSource')
-      );
+      const list = assetsForAccount(acc);
+      next[acc.name] = aggregateEnabled
+        ? aggregateAssetsBySymbol(list, t('assetTable.aggregatedSource'))
+        : list;
     });
     return next;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aggregateEnabled, displayedAssetsAll, assets, exchanges.length, wallets.length]);
+  }, [aggregateEnabled, assets, accountAssets, exchanges.length, wallets.length]);
 
   return (
     <div className="space-y-8">
@@ -106,12 +113,22 @@ export function AssetTabs({
                 <AssetTable assets={displayedAssetsAll} />
             </TabsContent>
             
-            {allAccounts.map(acc => (
+            {allAccounts.map(acc => {
+                const accList = displayedAssetsByAccount[acc.name] || [];
+                // 该账户已有数据（含本轮先到的新数据）则显示估值；仅空列表且仍在拉取时才转圈
+                const accLoading =
+                  Boolean(loadingByAccount[acc.name]) && accList.length === 0;
+
+                return (
                 <TabsContent key={acc.id} value={acc.name} className="space-y-8 mt-8">
-                    <SummaryCard assets={displayedAssetsByAccount[acc.name] || []} loading={loading} />
-                    <AssetTable assets={displayedAssetsByAccount[acc.name] || []} />
+                    <SummaryCard
+                      assets={accList}
+                      loading={accLoading}
+                    />
+                    <AssetTable assets={accList} />
                 </TabsContent>
-            ))}
+                );
+            })}
         </Tabs>
     </div>
   );

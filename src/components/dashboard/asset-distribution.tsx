@@ -5,6 +5,7 @@ import { Asset } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PieChart as PieChartIcon } from 'lucide-react';
 import { useI18n } from '@/hooks/use-i18n';
+import { localizeCexLabelText } from '@/lib/asset-display';
 
 // 更美观的颜色方案
 const COLORS = [
@@ -17,9 +18,9 @@ const COLORS = [
 ];
 
 export function AssetDistribution({ assets }: { assets: Asset[] }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const dataMap = assets.reduce((acc, asset) => {
-    const key = asset.symbol;
+    const key = localizeCexLabelText(asset.symbol, language);
     if (!acc[key]) acc[key] = 0;
     acc[key] += asset.valueUsd;
     return acc;
