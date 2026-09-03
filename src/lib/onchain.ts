@@ -173,11 +173,26 @@ const COMMON_TOKENS: Record<number, Array<{ symbol: string, address: string, dec
     { symbol: 'PURR', address: '0x9b498C3c8A0b8CD8BA1D9851d40D186F1872b44E', decimals: 18 },
   ],
   [robinhood.id]: [
+    // Official / high-liquidity tokens
+    { symbol: 'USDG', address: '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168', decimals: 6 },
+    { symbol: 'WETH', address: '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73', decimals: 18 },
     // Canonical bridge L2 addresses (Arbitrum standard gateway); active once ERC-20 bridge deposits land
     { symbol: 'USDC', address: '0x2D68E50Ef5f5CD4E070C81e2A13280975c4D0e0B', decimals: 6 },
     { symbol: 'USDT', address: '0x39D725738006438ccac2d3176ABcef3B1A4a2517', decimals: 6 },
+    // Popular ecosystem / meme tokens
     { symbol: 'CASHCAT', address: '0x020bfc650a365f8bb26819deaabf3e21291018b4', decimals: 18 },
+    { symbol: 'PONS', address: '0x39dBED3a2bd333467115dE45665cC57F813C4571', decimals: 18 },
+    { symbol: 'NET', address: '0xCA9c78Dd337A67F6e0077F65F5E9218719d30eDf', decimals: 9 },
+    { symbol: 'DOGO', address: '0x77b0AA38451ccDC1b42587E2f80B9879A7f82356', decimals: 18 },
   ],
+};
+
+/** Robinhood tokens priced via DeFiLlama coingecko: slug (chain not yet fully indexed) */
+const ROBINHOOD_COINGECKO_IDS: Record<string, string> = {
+  CASHCAT: 'cash-cat',
+  PONS: 'pons',
+  NET: 'netnet',
+  DOGO: 'dogbull',
 };
 
 const ERC20_ABI = parseAbi([
@@ -237,8 +252,10 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
              
              const amount = parseFloat(formatUnits(tokenBalance, token.decimals));
              if (amount > 0) {
-                 const isCashCat =
-                   chain.id === robinhood.id && token.symbol === 'CASHCAT';
+                 const cgId =
+                   chain.id === robinhood.id
+                     ? ROBINHOOD_COINGECKO_IDS[token.symbol]
+                     : undefined;
                  assets.push({
                      symbol: token.symbol,
                      amount: amount,
@@ -247,10 +264,8 @@ export async function fetchOnChainAssets(address: string): Promise<Asset[]> {
                      source: `Wallet (${chain.name})`,
                      type: 'wallet',
                      chainId: chain.id,
-                     chainName: isCashCat
-                       ? 'coingecko'
-                       : DEFILLAMA_CHAIN_MAP[chain.id],
-                     contractAddress: isCashCat ? 'cash-cat' : token.address,
+                     chainName: cgId ? 'coingecko' : DEFILLAMA_CHAIN_MAP[chain.id],
+                     contractAddress: cgId ?? token.address,
                  });
              }
           } catch (e) {

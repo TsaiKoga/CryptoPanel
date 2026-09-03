@@ -80,9 +80,9 @@
 - ✅ **Plume**
 - ✅ **HyperEVM**
 - ✅ **Robinhood Chain** (Chain ID: 4663)
-  - 原生 **ETH**
+  - 原生 **ETH**、**WETH**、**USDG**
   - **USDC** / **USDT**（canonical bridge 确定性地址，桥上线并有人桥入后生效）
-  - **CASHCAT**（CoinGecko 定价）
+  - 热门生态代币：**CASHCAT**、**PONS**、**NET**、**DOGO**（CoinGecko 定价）
 
 ### 非 EVM 链
 

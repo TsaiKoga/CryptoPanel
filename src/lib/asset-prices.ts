@@ -3,7 +3,7 @@ import { assetBaseSymbol } from '@/lib/asset-display';
 
 const NATIVE_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-const STABLECOINS = new Set(['USDT', 'USDC', 'DAI', 'FDUSD', 'BUSD']);
+const STABLECOINS = new Set(['USDT', 'USDC', 'USDG', 'DAI', 'FDUSD', 'BUSD']);
 
 const BINANCE_USDT_PAIRS: Record<string, string> = {
   ETH: 'ETHUSDT',
@@ -36,6 +36,9 @@ const SYMBOL_MAPPING: Record<string, string> = {
   ZORA: 'ZORA',
   VIRTUAL: 'VIRTUAL',
   CASHCAT: 'CASHCAT',
+  PONS: 'PONS',
+  NET: 'NET',
+  DOGO: 'DOGO',
   JTO: 'JTO',
   BONK: 'BONK',
   WIF: 'WIF',

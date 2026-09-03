@@ -80,9 +80,9 @@ Unified management of your CEX and on-chain cryptocurrency assets
 - ✅ **Plume**
 - ✅ **HyperEVM**
 - ✅ **Robinhood Chain** (Chain ID: 4663)
-  - Native **ETH**
+  - Native **ETH**, **WETH**, **USDG**
   - **USDC** / **USDT** (canonical bridge deterministic addresses; active once bridged)
-  - **CASHCAT** (CoinGecko pricing)
+  - Popular ecosystem tokens: **CASHCAT**, **PONS**, **NET**, **DOGO** (CoinGecko pricing)
 
 ### Non-EVM Chains
 
