@@ -338,6 +338,26 @@
     gap: 0.75rem !important; /* gap-3 */
   }
 
+  /* 总资产卡片内币种切换：沿用 Select 触发器视觉，但保持紧凑尺寸 */
+  [data-slot="select-trigger"][data-size="sm"] {
+    height: 2.5rem !important;
+    min-width: 6rem !important;
+    padding-left: 0.875rem !important;
+    padding-right: 0.875rem !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    gap: 0.5rem !important;
+    border-width: 2px !important;
+    border-radius: 0.75rem !important;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+  }
+
+  [data-slot="select-trigger"][data-size="sm"]:hover,
+  [data-slot="select-trigger"][data-size="sm"][aria-expanded="true"] {
+    border-color: color-mix(in oklab, var(--primary) 50%, var(--border)) !important;
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
   [data-slot="select-value"] {
     color: var(--foreground) !important;
   }

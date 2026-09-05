@@ -1,24 +1,29 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Asset } from '@/types';
-import { TrendingUp, Wallet, ArrowUpRight } from 'lucide-react';
-import { ratesCache, currencyPreference } from '@/lib/storage';
+import { TrendingUp, Wallet, ArrowUpRight, ChevronDown, Check } from 'lucide-react';
+import { ratesCache, currencyPreference, type DisplayCurrency } from '@/lib/storage';
 import { useI18n } from '@/hooks/use-i18n';
 import { fetchMarketRates } from '@/lib/api';
 import { DEFAULT_USD_TO_CNY } from '@/lib/rates';
+import { cn } from '@/lib/utils';
 
-type Currency = 'USD' | 'CNY' | 'BTC';
+type Currency = DisplayCurrency;
+
+const CURRENCY_OPTIONS: Currency[] = ['USD', 'CNY', 'BTC', 'ETH'];
 
 export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boolean }) {
   const { t } = useI18n();
   const [currency, setCurrency] = useState<Currency>('USD');
   const [btcPrice, setBtcPrice] = useState<number>(0);
+  const [ethPrice, setEthPrice] = useState<number>(0);
   const [usdToCny, setUsdToCny] = useState<number>(DEFAULT_USD_TO_CNY);
   const [loadingRates, setLoadingRates] = useState(false);
   const [loadingDots, setLoadingDots] = useState(0);
+  const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
+  const currencyMenuRef = useRef<HTMLDivElement>(null);
 
   const totalValueUsd = assets.reduce((sum, asset) => sum + asset.valueUsd, 0);
   const assetCount = assets.length;
@@ -37,13 +42,39 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
     loadCurrencyPreference();
   }, []);
 
-  // 获取 BTC 价格和 USD 到 CNY 的汇率（带缓存）
+  // Chrome 扩展 popup 里 Radix Select Portal 常点不开；用本地下拉并在外部点击时关闭
+  useEffect(() => {
+    if (!currencyMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!currencyMenuRef.current?.contains(e.target as Node)) {
+        setCurrencyMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCurrencyMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [currencyMenuOpen]);
+
+  const selectCurrency = async (value: Currency) => {
+    setCurrency(value);
+    setCurrencyMenuOpen(false);
+    await currencyPreference.set(value);
+  };
+
+  // 获取 BTC / ETH 价格和 USD 到 CNY 的汇率（带缓存）
   useEffect(() => {
     const loadRates = async () => {
       // 先从缓存读取
       const cached = await ratesCache.get();
       if (cached) {
         setBtcPrice(cached.btcPrice);
+        setEthPrice(cached.ethPrice);
         setUsdToCny(cached.usdToCny);
         setLoadingRates(false);
         // 如果缓存存在，仍然在后台更新（不阻塞UI）
@@ -59,6 +90,7 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
 
     const updateRates = async (): Promise<void> => {
       let fetchedBtcPrice = 0;
+      let fetchedEthPrice = 0;
       let fetchedUsdToCny = DEFAULT_USD_TO_CNY;
 
       try {
@@ -66,6 +98,10 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
         if (rates.btcPrice > 0) {
           fetchedBtcPrice = rates.btcPrice;
           setBtcPrice(fetchedBtcPrice);
+        }
+        if (rates.ethPrice > 0) {
+          fetchedEthPrice = rates.ethPrice;
+          setEthPrice(fetchedEthPrice);
         }
         if (rates.usdToCny > 0) {
           fetchedUsdToCny = rates.usdToCny;
@@ -75,7 +111,7 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
         console.warn('[SummaryCard] Failed to fetch market rates:', e);
       }
 
-      // 行情 API 全失败时，尝试从已加载的 BTC 资产取价
+      // 行情 API 全失败时，尝试从已加载的资产取价
       if (fetchedBtcPrice <= 0) {
         const btcAsset = assets.find(
           (a) =>
@@ -87,9 +123,23 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
           setBtcPrice(fetchedBtcPrice);
         }
       }
+      if (fetchedEthPrice <= 0) {
+        const ethAsset = assets.find(
+          (a) =>
+            a.price > 0 &&
+            (a.symbol === 'ETH' ||
+              a.symbol === 'WETH' ||
+              a.symbol.split(' ')[0].trim() === 'ETH' ||
+              a.symbol.split(' ')[0].trim() === 'WETH')
+        );
+        if (ethAsset) {
+          fetchedEthPrice = ethAsset.price;
+          setEthPrice(fetchedEthPrice);
+        }
+      }
 
       if (fetchedBtcPrice > 0 && fetchedUsdToCny > 0) {
-        await ratesCache.set(fetchedBtcPrice, fetchedUsdToCny);
+        await ratesCache.set(fetchedBtcPrice, fetchedUsdToCny, fetchedEthPrice);
       }
     };
 
@@ -145,8 +195,17 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
             maximumFractionDigits: 8 
           })} BTC`;
         }
-          return t('dashboard.loading');
-        default:
+        return t('dashboard.loading');
+      case 'ETH':
+        if (ethPrice > 0) {
+          const ethValue = totalValueUsd / ethPrice;
+          return `${ethValue.toLocaleString('en-US', {
+            minimumFractionDigits: 6,
+            maximumFractionDigits: 6,
+          })} ETH`;
+        }
+        return t('dashboard.loading');
+      default:
         return `$${totalValueUsd.toLocaleString('en-US', { 
           minimumFractionDigits: 2, 
           maximumFractionDigits: 2 
@@ -162,16 +221,18 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
         return 'CNY';
       case 'BTC':
         return 'BTC';
+      case 'ETH':
+        return 'ETH';
       default:
         return 'USD';
     }
   };
 
   return (
-    <Card className="relative overflow-hidden border-2 border-border/50 bg-gradient-to-br from-card via-card to-card/80 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-500 group">
+    <Card className="relative overflow-visible border-2 border-border/50 bg-gradient-to-br from-card via-card to-card/80 backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all duration-500 group">
       {/* 渐变背景装饰 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
+      <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-primary/10 via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
       
       <CardHeader 
         className="relative flex flex-row items-center justify-between space-y-0 pb-6"
@@ -185,24 +246,61 @@ export function SummaryCard({ assets, loading }: { assets: Asset[], loading: boo
             <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               {t('dashboard.totalAssets')}
             </CardTitle>
-            <div className="mt-1">
-              <Select 
-                value={currency} 
-                onValueChange={async (value: Currency) => {
-                  setCurrency(value);
-                  // 保存用户选择的货币单位
-                  await currencyPreference.set(value);
-                }}
+            <div className="mt-1 relative" ref={currencyMenuRef}>
+              <button
+                type="button"
+                data-slot="select-trigger"
+                data-size="sm"
+                aria-haspopup="listbox"
+                aria-expanded={currencyMenuOpen}
+                onClick={() => setCurrencyMenuOpen((open) => !open)}
+                className={cn(
+                  // Match SelectTrigger visuals used before the popup fix
+                  'border-2 border-border bg-background text-foreground shadow-sm',
+                  'flex h-10 w-24 items-center justify-between gap-2 rounded-xl px-3 text-xs font-medium whitespace-nowrap',
+                  'transition-all duration-200 outline-none',
+                  'hover:bg-accent/50 hover:border-primary/50 hover:shadow-md',
+                  'focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  currencyMenuOpen && 'border-primary ring-2 ring-ring ring-offset-2 shadow-md'
+                )}
               >
-                <SelectTrigger className="h-8 w-20 text-xs font-medium border-border/50 bg-background/50 hover:bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="CNY">CNY</SelectItem>
-                  <SelectItem value="BTC">BTC</SelectItem>
-                </SelectContent>
-              </Select>
+                <span data-slot="select-value">{getCurrencySymbol()}</span>
+                <ChevronDown
+                  className={cn(
+                    'size-4 shrink-0 opacity-60 transition-transform duration-200',
+                    currencyMenuOpen && 'rotate-180'
+                  )}
+                />
+              </button>
+              {currencyMenuOpen && (
+                <ul
+                  role="listbox"
+                  data-slot="select-content"
+                  className="absolute left-0 top-full z-[100] mt-1 min-w-[6.5rem] overflow-hidden rounded-xl border-2 border-border bg-popover p-1.5 text-popover-foreground shadow-xl"
+                >
+                  {CURRENCY_OPTIONS.map((option) => (
+                    <li key={option}>
+                      <button
+                        type="button"
+                        role="option"
+                        data-slot="select-item"
+                        aria-selected={currency === option}
+                        onClick={() => void selectCurrency(option)}
+                        className={cn(
+                          'relative flex w-full cursor-default items-center justify-between gap-2 rounded-lg py-2.5 pl-3 pr-8 text-xs font-medium outline-none select-none',
+                          'transition-colors duration-150 hover:bg-accent hover:text-accent-foreground',
+                          currency === option && 'bg-accent text-accent-foreground'
+                        )}
+                      >
+                        <span>{option}</span>
+                        {currency === option && (
+                          <Check className="absolute right-2.5 size-3.5 text-primary" />
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>

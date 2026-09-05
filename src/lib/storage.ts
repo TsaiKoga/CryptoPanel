@@ -16,9 +16,14 @@ interface CachedAssets {
 
 interface CachedRates {
   btcPrice: number;
+  ethPrice?: number;
   usdToCny: number;
   timestamp: number;
 }
+
+export type DisplayCurrency = 'USD' | 'CNY' | 'BTC' | 'ETH';
+
+const DISPLAY_CURRENCIES: DisplayCurrency[] = ['USD', 'CNY', 'BTC', 'ETH'];
 
 const STORAGE_KEY = 'crypto-panel-data-v1';
 const CACHE_KEY = 'crypto-panel-assets-cache-v1';
@@ -170,9 +175,9 @@ export const assetCache = {
   },
 };
 
-// Rates cache utilities (BTC price and USD/CNY rate)
+// Rates cache utilities (BTC/ETH price and USD/CNY rate)
 export const ratesCache = {
-  async get(): Promise<{ btcPrice: number; usdToCny: number } | null> {
+  async get(): Promise<{ btcPrice: number; ethPrice: number; usdToCny: number } | null> {
     if (isChromeExtension) {
       return new Promise((resolve) => {
         chrome.storage.local.get(RATES_CACHE_KEY, (result) => {
@@ -185,9 +190,11 @@ export const ratesCache = {
             const data: CachedRates = JSON.parse(cached);
             // Check if cache is still valid (within 30 minutes)
             const now = Date.now();
-            if (now - data.timestamp < RATES_CACHE_DURATION) {
+            // Old caches without ethPrice are treated as expired so ETH rate refreshes
+            if (now - data.timestamp < RATES_CACHE_DURATION && (data.ethPrice ?? 0) > 0) {
               resolve({
                 btcPrice: data.btcPrice,
+                ethPrice: data.ethPrice ?? 0,
                 usdToCny: data.usdToCny,
               });
             } else {
@@ -208,9 +215,10 @@ export const ratesCache = {
         try {
           const data: CachedRates = JSON.parse(stored);
           const now = Date.now();
-          if (now - data.timestamp < RATES_CACHE_DURATION) {
+          if (now - data.timestamp < RATES_CACHE_DURATION && (data.ethPrice ?? 0) > 0) {
             return {
               btcPrice: data.btcPrice,
+              ethPrice: data.ethPrice ?? 0,
               usdToCny: data.usdToCny,
             };
           } else {
@@ -226,9 +234,10 @@ export const ratesCache = {
     }
   },
 
-  async set(btcPrice: number, usdToCny: number): Promise<void> {
+  async set(btcPrice: number, usdToCny: number, ethPrice = 0): Promise<void> {
     const cacheData: CachedRates = {
       btcPrice,
+      ethPrice,
       usdToCny,
       timestamp: Date.now(),
     };
@@ -354,16 +363,16 @@ export const fearGreedAlertState = {
   },
 };
 
-// Currency preference utilities (USD, CNY, BTC)
+// Currency preference utilities (USD, CNY, BTC, ETH)
 export const currencyPreference = {
-  async get(): Promise<'USD' | 'CNY' | 'BTC' | null> {
+  async get(): Promise<DisplayCurrency | null> {
     if (isChromeExtension) {
       return new Promise((resolve) => {
         chrome.storage.local.get(CURRENCY_KEY, (result) => {
           try {
             const currency = result[CURRENCY_KEY];
-            if (currency && ['USD', 'CNY', 'BTC'].includes(currency)) {
-              resolve(currency as 'USD' | 'CNY' | 'BTC');
+            if (currency && DISPLAY_CURRENCIES.includes(currency)) {
+              resolve(currency as DisplayCurrency);
             } else {
               resolve(null);
             }
@@ -376,14 +385,14 @@ export const currencyPreference = {
     } else {
       // Fallback to localStorage for web
       const stored = localStorage.getItem(CURRENCY_KEY);
-      if (stored && ['USD', 'CNY', 'BTC'].includes(stored)) {
-        return stored as 'USD' | 'CNY' | 'BTC';
+      if (stored && DISPLAY_CURRENCIES.includes(stored as DisplayCurrency)) {
+        return stored as DisplayCurrency;
       }
       return null;
     }
   },
 
-  async set(currency: 'USD' | 'CNY' | 'BTC'): Promise<void> {
+  async set(currency: DisplayCurrency): Promise<void> {
     if (isChromeExtension) {
       return new Promise((resolve, reject) => {
         chrome.storage.local.set({ [CURRENCY_KEY]: currency }, () => {

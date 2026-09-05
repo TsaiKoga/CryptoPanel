@@ -1,5 +1,6 @@
 export interface MarketRates {
   btcPrice: number;
+  ethPrice: number;
   usdToCny: number;
 }
 
@@ -58,6 +59,45 @@ export async function fetchBtcPriceUsd(fetchImpl: FetchImpl = fetch): Promise<nu
   ]);
 }
 
+export async function fetchEthPriceUsd(fetchImpl: FetchImpl = fetch): Promise<number> {
+  return trySources([
+    async () => {
+      const res = await fetchImpl('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT');
+      if (!res.ok) return 0;
+      const data = (await res.json()) as { price?: string };
+      return parseFloat(data.price ?? '0') || 0;
+    },
+    async () => {
+      const res = await fetchImpl(
+        'https://www.okx.com/api/v5/market/ticker?instId=ETH-USDT'
+      );
+      if (!res.ok) return 0;
+      const data = (await res.json()) as {
+        code?: string;
+        data?: Array<{ last?: string }>;
+      };
+      if (data.code !== '0' || !data.data?.[0]?.last) return 0;
+      return parseFloat(data.data[0].last) || 0;
+    },
+    async () => {
+      const res = await fetchImpl(
+        'https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD'
+      );
+      if (!res.ok) return 0;
+      const data = (await res.json()) as { USD?: number };
+      return data.USD || 0;
+    },
+    async () => {
+      const res = await fetchImpl(
+        'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'
+      );
+      if (!res.ok) return 0;
+      const data = (await res.json()) as { ethereum?: { usd?: number } };
+      return data.ethereum?.usd || 0;
+    },
+  ]);
+}
+
 export async function fetchUsdToCnyRate(fetchImpl: FetchImpl = fetch): Promise<number> {
   const rate = await trySources([
     async () => {
@@ -79,9 +119,10 @@ export async function fetchUsdToCnyRate(fetchImpl: FetchImpl = fetch): Promise<n
 }
 
 export async function fetchMarketRates(fetchImpl: FetchImpl = fetch): Promise<MarketRates> {
-  const [btcPrice, usdToCny] = await Promise.all([
+  const [btcPrice, ethPrice, usdToCny] = await Promise.all([
     fetchBtcPriceUsd(fetchImpl),
+    fetchEthPriceUsd(fetchImpl),
     fetchUsdToCnyRate(fetchImpl),
   ]);
-  return { btcPrice, usdToCny };
+  return { btcPrice, ethPrice, usdToCny };
 }

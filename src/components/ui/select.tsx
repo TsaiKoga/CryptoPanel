@@ -75,8 +75,10 @@ function SelectContent({
         <SelectPrimitive.Viewport
           className={cn(
             "p-1.5",
+            // Keep width aligned to trigger; do NOT clamp height to trigger
+            // (that clips options to ~one line and looks like "no response" in the extension popup).
             position === "popper" &&
-              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
+              "w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
           )}
         >
           {children}
